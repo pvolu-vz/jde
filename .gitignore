@@ -1,3 +1,4 @@
 .env
 integrations/*/Samples/
 venv/
+.DS_Store
