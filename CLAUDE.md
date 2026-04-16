@@ -18,6 +18,16 @@ This project has two defined agent workflows. When the user's request matches th
 - DO NOT use bare `print()` for logging — use the `logging` module throughout (startup banner is the only exception)
 - ONLY generate files inside the current workspace
 
+### Reference Materials
+
+Before generating any code, read all three reference files in full:
+
+1. `.github/skills/veza-oaa-integration/references/references.md` — Veza SDK docs, private reference repos, community connector examples, and the required `_setup_logging()` logging template
+2. `.github/skills/veza-oaa-integration/references/artifacts.md` — Complete specifications for all 5 artifacts: Python CLI contract, data adapter patterns by source type, Bash installer spec, requirements base deps, `.env.example` template, README 11-section structure
+3. `.github/skills/veza-oaa-integration/references/quality-checklist.md` — 13-item quality checklist and automated validation protocol
+
+Apply these references throughout Steps 1–3. Do not generate code without reading them first.
+
 ### Delegation
 
 When the user's request is about **testing, dry-running, validating, or pushing to a lab/test environment** for an existing integration script, switch to the **OAA Dry-Run Tester** workflow below. Do not attempt to run scripts inside this agent's workflow.
@@ -47,6 +57,8 @@ If a flat file (CSV/XLSX) is the source, ensure a representative sample with at 
 Skip requirements gathering only if the user's request already provides enough detail to proceed directly to Step 2.
 
 #### Step 2 — Generate All Artifacts
+
+> **Before writing code:** Confirm you have read all three reference files from `### Reference Materials` above. Use the logging pattern, artifact specs, and community connector examples from those files.
 
 Use the system name as a slug (lowercase, hyphens). Save all artifacts under `./integrations/<system_slug>/`. Produce all five artifacts:
 
