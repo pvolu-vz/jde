@@ -1,19 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git check-ignore *)",
-      "Bash(* --dry-run*)",
-      "Bash(python3 -c *)",
-      "Bash(chmod +x /Users/pedro.volu/Documents/OAA_Agent/integrations/jde/install_jde.sh)",
-      "Bash(pip show *)",
-      "Bash(pip3 show *)",
-      "Bash(python3 -c \"from oaaclient.client import OAAClient, OAAClientError; from oaaclient.templates import CustomApplication, OAAPermission; print\\('imports OK'\\); app = CustomApplication\\('test', 'test'\\); print\\(dir\\(app\\)[:5]\\)\")",
-      "Bash(pip install -q *)",
-      "Bash(python3 * --help)",
-      "Bash(find *)",
-      "Bash(./venv/bin/pip list)",
-      "Bash(./venv/bin/pip show *)",
-      "Bash(pip index versions *)"
-    ]
+      "Bash(*)"
+    ],
+    "defaultMode": "bypassPermissions"
   }
 }
