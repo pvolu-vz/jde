@@ -109,7 +109,7 @@ The installer must:
 4. Clone/update the repository into `/opt/<system-slug>-veza/scripts/`
 5. Create this directory layout:
    ```
-   /opt/<system-slug>-veza/
+   /opt/VEZA/<system-slug>-veza/
    ├── scripts/
    │   ├── <system_name>.py
    │   ├── requirements.txt
