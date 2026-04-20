@@ -49,7 +49,11 @@ install_system_deps() {
     log "Installing system dependencies …"
     case "${PKG_MGR}" in
         dnf|yum)
-            "${PKG_MGR}" install -y git curl python3 python3-pip python3-venv unixODBC-devel
+            # python3-venv is not a separate package on Amazon Linux 2023 / RHEL 9+;
+            # venv is included in python3 itself, so skip it to avoid "No match" errors.
+            "${PKG_MGR}" install -y git curl python3 python3-pip unixODBC-devel || true
+            # Install python3-venv only if available (older RHEL/CentOS)
+            "${PKG_MGR}" install -y python3-venv 2>/dev/null || true
             ;;
         apt-get)
             apt-get update -q
