@@ -1,0 +1,14 @@
+2026-04-16T17:45:29 INFO     Loading data from CSV files in ./samples
+2026-04-16T17:45:29 INFO     Loaded 10 users records from users.csv
+2026-04-16T17:45:29 INFO     Loaded 13 roles records from roles.csv
+2026-04-16T17:45:29 INFO     Loaded 18 user_roles records from user_roles.csv
+2026-04-16T17:45:29 INFO     Loaded 18 programs records from programs.csv
+2026-04-16T17:45:29 INFO     Loaded 37 security records from security.csv
+2026-04-16T17:45:29 INFO     Users added: 10
+2026-04-16T17:45:29 INFO     Roles added: 13
+2026-04-16T17:45:29 INFO     User-role assignments: 18
+2026-04-16T17:45:29 INFO     Program resources added: 18
+2026-04-16T17:45:29 INFO     Security records processed: 37  |  skipped: 0
+2026-04-16T17:45:29 INFO     Payload summary — Users: 10  Roles: 13  Programs: 18  SecurityRecords: 37
+2026-04-16T17:45:29 INFO     Payload saved to /Users/pedro.volu/Documents/OAA_Agent/integrations/jde/JDE_EnterpriseOne_payload.json
+2026-04-16T17:45:29 INFO     [DRY RUN] Payload built successfully — push to Veza skipped

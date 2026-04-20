@@ -1,4 +1,4 @@
 .env
-integrations/*
+integrations/*/samples/
 venv/
 .DS_Store

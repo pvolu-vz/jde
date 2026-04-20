@@ -1,0 +1,564 @@
+{
+  "custom_property_definition": {
+    "applications": [
+      {
+        "application_type": "JD Edwards",
+        "local_user_properties": {
+          "jde_status": "STRING",
+          "address_book_number": "STRING"
+        },
+        "local_role_properties": {
+          "role_type": "STRING"
+        },
+        "resources": [
+          {
+            "resource_type": "Program",
+            "properties": {
+              "object_type": "STRING",
+              "product_code": "STRING"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "applications": [
+    {
+      "name": "JDE EnterpriseOne",
+      "application_type": "JD Edwards",
+      "description": null,
+      "local_users": [
+        {
+          "name": "JSMITH",
+          "identities": [
+            "jsmith@example.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A",
+            "address_book_number": "1001"
+          }
+        },
+        {
+          "name": "MJONES",
+          "identities": [
+            "mjones@example.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A",
+            "address_book_number": "1002"
+          }
+        },
+        {
+          "name": "BJOHNSON",
+          "identities": [
+            "bjohnson@example.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A",
+            "address_book_number": "1003"
+          }
+        },
+        {
+          "name": "SLEE",
+          "identities": [
+            "slee@example.com"
+          ],
+          "is_active": false,
+          "custom_properties": {
+            "jde_status": "D",
+            "address_book_number": "1004"
+          }
+        },
+        {
+          "name": "DKIM",
+          "identities": [
+            "dkim@example.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A",
+            "address_book_number": "1005"
+          }
+        },
+        {
+          "name": "RGARCIA",
+          "identities": [
+            "rgarcia@example.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A",
+            "address_book_number": "1006"
+          }
+        },
+        {
+          "name": "TWILSON",
+          "identities": [
+            "twilson@example.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A",
+            "address_book_number": "1007"
+          }
+        },
+        {
+          "name": "EMARTINEZ",
+          "identities": [
+            "emartinez@example.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A",
+            "address_book_number": "1008"
+          }
+        },
+        {
+          "name": "PCHEN",
+          "identities": [
+            "pchen@example.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A",
+            "address_book_number": "1009"
+          }
+        },
+        {
+          "name": "LTHOMPSON",
+          "identities": [
+            "lthompson@example.com"
+          ],
+          "is_active": false,
+          "custom_properties": {
+            "jde_status": "D",
+            "address_book_number": "1010"
+          }
+        }
+      ],
+      "local_groups": [],
+      "local_roles": [
+        {
+          "name": "AP_CLERK",
+          "permissions": [
+            "view",
+            "add",
+            "change",
+            "run"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "AP_MANAGER",
+          "permissions": [
+            "full_access",
+            "view",
+            "run"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "AR_CLERK",
+          "permissions": [
+            "view",
+            "add",
+            "change"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "AR_MANAGER",
+          "permissions": [
+            "full_access",
+            "view",
+            "run"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "GL_ACCOUNTANT",
+          "permissions": [
+            "view",
+            "add",
+            "change",
+            "run"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "GL_SUPERVISOR",
+          "permissions": [
+            "full_access",
+            "view",
+            "run"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "INVENTORY_VIEW",
+          "permissions": [
+            "view"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "INVENTORY_MANAGER",
+          "permissions": [
+            "full_access"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "PAYROLL_ADMIN",
+          "permissions": [
+            "full_access"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "PAYROLL_VIEW",
+          "permissions": [
+            "view"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "PURCHASING_AGENT",
+          "permissions": [
+            "view",
+            "add",
+            "change",
+            "run"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "PURCHASING_MANAGER",
+          "permissions": [
+            "full_access",
+            "view",
+            "run"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        },
+        {
+          "name": "FINANCE_READONLY",
+          "permissions": [
+            "view"
+          ],
+          "custom_properties": {
+            "role_type": "R"
+          }
+        }
+      ],
+      "local_access_creds": [],
+      "tags": [],
+      "custom_properties": {},
+      "resources": [
+        {
+          "name": "P0411",
+          "resource_type": "Program",
+          "description": "Voucher Entry",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "04"
+          }
+        },
+        {
+          "name": "P0412",
+          "resource_type": "Program",
+          "description": "Manual Payment Entry",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "04"
+          }
+        },
+        {
+          "name": "P03B11",
+          "resource_type": "Program",
+          "description": "Standard Invoice Entry",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P03B2002",
+          "resource_type": "Program",
+          "description": "Receipt Entry",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P09200",
+          "resource_type": "Program",
+          "description": "General Journal Entry",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "09"
+          }
+        },
+        {
+          "name": "P09210",
+          "resource_type": "Program",
+          "description": "Account Ledger Inquiry",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "09"
+          }
+        },
+        {
+          "name": "P4101",
+          "resource_type": "Program",
+          "description": "Item Master Revisions",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "41"
+          }
+        },
+        {
+          "name": "P4105",
+          "resource_type": "Program",
+          "description": "Item Cost Revisions",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "41"
+          }
+        },
+        {
+          "name": "P4310",
+          "resource_type": "Program",
+          "description": "Purchase Order Entry",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "43"
+          }
+        },
+        {
+          "name": "P4311",
+          "resource_type": "Program",
+          "description": "Purchase Order Inquiry",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "43"
+          }
+        },
+        {
+          "name": "P07210",
+          "resource_type": "Program",
+          "description": "Time Entry by Individual",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "07"
+          }
+        },
+        {
+          "name": "P07220",
+          "resource_type": "Program",
+          "description": "Time Entry by Business Unit",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "07"
+          }
+        },
+        {
+          "name": "P059021",
+          "resource_type": "Program",
+          "description": "Employee Setup",
+          "custom_properties": {
+            "object_type": "APPL",
+            "product_code": "05"
+          }
+        },
+        {
+          "name": "R09801",
+          "resource_type": "Program",
+          "description": "General Ledger Post",
+          "custom_properties": {
+            "object_type": "UBE",
+            "product_code": "09"
+          }
+        },
+        {
+          "name": "R04572",
+          "resource_type": "Program",
+          "description": "Automatic Payment Processing",
+          "custom_properties": {
+            "object_type": "UBE",
+            "product_code": "04"
+          }
+        },
+        {
+          "name": "R03B50",
+          "resource_type": "Program",
+          "description": "Delinquency Notices",
+          "custom_properties": {
+            "object_type": "UBE",
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "R42800",
+          "resource_type": "Program",
+          "description": "Sales Update",
+          "custom_properties": {
+            "object_type": "UBE",
+            "product_code": "42"
+          }
+        },
+        {
+          "name": "R4311",
+          "resource_type": "Program",
+          "description": "Purchase Order Print",
+          "custom_properties": {
+            "object_type": "UBE",
+            "product_code": "43"
+          }
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    {
+      "name": "view",
+      "permission_type": [
+        "DataRead"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    },
+    {
+      "name": "add",
+      "permission_type": [
+        "DataRead",
+        "DataWrite"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    },
+    {
+      "name": "change",
+      "permission_type": [
+        "DataRead",
+        "DataWrite"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    },
+    {
+      "name": "delete",
+      "permission_type": [
+        "DataRead",
+        "DataWrite",
+        "DataDelete"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    },
+    {
+      "name": "run",
+      "permission_type": [
+        "DataRead"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    },
+    {
+      "name": "full_access",
+      "permission_type": [
+        "DataRead",
+        "DataWrite",
+        "DataDelete",
+        "MetadataRead",
+        "MetadataWrite"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    }
+  ],
+  "identity_to_permissions": [
+    {
+      "identity": "JSMITH",
+      "identity_type": "local_user",
+      "application_permissions": [
+        {
+          "application": "JDE EnterpriseOne",
+          "resources": [
+            "P0411"
+          ],
+          "permission": "view"
+        },
+        {
+          "application": "JDE EnterpriseOne",
+          "resources": [
+            "P0411"
+          ],
+          "permission": "add"
+        },
+        {
+          "application": "JDE EnterpriseOne",
+          "resources": [
+            "P0411"
+          ],
+          "permission": "change"
+        }
+      ]
+    },
+    {
+      "identity": "MJONES",
+      "identity_type": "local_user",
+      "application_permissions": [
+        {
+          "application": "JDE EnterpriseOne",
+          "resources": [
+            "P09200"
+          ],
+          "permission": "full_access"
+        },
+        {
+          "application": "JDE EnterpriseOne",
+          "resources": [
+            "R09801"
+          ],
+          "permission": "view"
+        },
+        {
+          "application": "JDE EnterpriseOne",
+          "resources": [
+            "R09801"
+          ],
+          "permission": "run"
+        }
+      ]
+    }
+  ]
+}
