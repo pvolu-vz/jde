@@ -151,8 +151,11 @@ def _apply_schema(sql_template: str, schema: str) -> str:
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 def load_config(args) -> dict:
-    if args.env_file and os.path.exists(args.env_file):
-        load_dotenv(args.env_file)
+    if args.env_file:
+        if os.path.exists(args.env_file):
+            load_dotenv(args.env_file)
+        else:
+            log.warning("env file not found: %s — credentials must be set as environment variables", args.env_file)
 
     return {
         "veza_url":       args.veza_url      or os.getenv("VEZA_URL"),
