@@ -174,7 +174,7 @@ def load_config(args) -> dict:
 def load_from_db(config: dict) -> dict:
     """Connect to JDE MS SQL Server and load all required identity/permission data."""
     try:
-        import pyodbc
+        import pyodbc  # type: ignore[import-untyped]
     except ImportError:
         log.error("pyodbc is not installed — run: pip install pyodbc")
         sys.exit(1)
