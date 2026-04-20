@@ -66,6 +66,7 @@ Verify each file before marking the task complete. Items marked **🤖 auto** ar
 - [ ] 👁️ manual — README includes a cron scheduling example
 - [ ] 👁️ manual — README includes a troubleshooting section
 - [ ] 👁️ manual — Logging uses `logging` module throughout — no bare `print()` (startup banner excepted)
+- [ ] 👁️ manual — `push_application()` is called with `create_provider=True` so the provider is created automatically if it does not exist
 - [ ] 🤖 auto — `--dry-run` skips Veza push and exits cleanly
 - [ ] 🤖 auto — If `samples/` contained files, generated field names match sample data exactly
 - [ ] 👁️ manual — If `samples/` was empty, `samples/SAMPLES.md` placeholder was created
