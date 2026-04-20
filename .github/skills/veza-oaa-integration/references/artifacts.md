@@ -103,11 +103,48 @@ set -euo pipefail
 ```
 
 The installer must:
-1. Detect Linux distro — support RHEL/CentOS/Fedora (`dnf`/`yum`) and Ubuntu/Debian (`apt`)
-2. Install: `git`, `curl`, `python3`, `python3-pip`, `python3-venv`
-3. Check Python ≥ 3.8 and exit with clear message if not met
-4. Clone/update the repository into `/opt/<system-slug>-veza/scripts/`
-5. Create this directory layout:
+1. Detect Linux distro — support RHEL/CentOS/Fedora (`dnf`/`yum`) and Ubuntu/Debian (`apt`). Also read `OS_ID` from `/etc/os-release` (`ID=` field) so Amazon Linux (`amzn`) can be handled specially.
+2. Install packages **one at a time with a pre-check**, never in a single bulk `dnf install` call — a conflict on one package (e.g. `curl`) will fail the entire command and block `git` from installing:
+   ```bash
+   _install_pkg() {
+       local pkg="$1"
+       case "${PKG_MGR}" in
+           dnf|yum) "${PKG_MGR}" install -y "${pkg}" >/dev/null ;;
+           apt-get) apt-get install -y "${pkg}" >/dev/null ;;
+       esac
+   }
+   command -v git     &>/dev/null || _install_pkg git
+   command -v python3 &>/dev/null || _install_pkg python3
+   python3 -m pip --version &>/dev/null || _install_pkg python3-pip
+   ```
+3. **`curl` on Amazon Linux** — `curl-minimal` is pre-installed and conflicts with full `curl`. Skip the curl install if `OS_ID=amzn` and curl is already present:
+   ```bash
+   if ! command -v curl &>/dev/null; then
+       [[ "${OS_ID}" == "amzn" ]] \
+           && warn "Skipping curl on Amazon Linux (curl-minimal conflict)" \
+           || _install_pkg curl
+   fi
+   ```
+4. **`python3-venv` on Amazon Linux 2023 / RHEL 9+** — `venv` is built into `python3`; `python3-venv` is not a separate package and `dnf` will error. Check first, and use `python3-virtualenv` as the fallback package name for dnf/yum:
+   ```bash
+   if ! python3 -m venv --help &>/dev/null; then
+       case "${PKG_MGR}" in
+           dnf|yum) _install_pkg python3-virtualenv ;;
+           apt-get) _install_pkg python3-venv ;;
+       esac
+   fi
+   ```
+5. Check Python ≥ 3.8 and exit with clear message if not met.
+6. **Clone with `GIT_TERMINAL_PROMPT=0`** — sparse-checkout flags (`--filter=blob:none --sparse`) trigger credential prompts even on public repos. Use a simple shallow clone into a temp dir, copy integration files, then clean up:
+   ```bash
+   tmp_dir=$(mktemp -d)
+   GIT_TERMINAL_PROMPT=0 git clone --branch "${BRANCH}" --depth 1 --single-branch \
+       "${REPO_URL}" "${tmp_dir}" || die "git clone failed"
+   cp -f "${tmp_dir}/${INTEGRATION_SUBDIR}"/*.py  "${SCRIPTS_DIR}/"
+   cp -f "${tmp_dir}/${INTEGRATION_SUBDIR}/requirements.txt" "${SCRIPTS_DIR}/"
+   rm -rf "${tmp_dir}"
+   ```
+7. Create this directory layout:
    ```
    /opt/VEZA/<system-slug>-veza/
    ├── scripts/
@@ -117,16 +154,20 @@ The installer must:
    │   └── venv/
    └── logs/
    ```
-6. Create a Python venv and install `requirements.txt`
-7. Prompt for credentials interactively (Veza URL, Veza API key, source credentials)
-8. Support non-interactive/CI mode via env vars:
+8. Create a Python venv and install `requirements.txt`.
+9. **Interactive prompts must use `/dev/tty`** — when the script runs via `curl | bash`, stdin is the pipe, not the terminal. All `read` calls must redirect from `/dev/tty`:
    ```bash
-   VEZA_URL=... VEZA_API_KEY=... SOURCE_API_URL=... SOURCE_API_KEY=... \
-   bash install_<system_name>.sh --non-interactive
+   IFS= read -r -p "Veza URL: " value </dev/tty
+   IFS= read -r -s -p "API key: " secret </dev/tty; echo >/dev/tty
    ```
-9. Generate `.env` with `chmod 600` and explanatory comments
-10. Accept flags: `--non-interactive`, `--overwrite-env`, `--install-dir <path>`, `--repo-url <url>`, `--branch <name>`
-11. Print final summary: install path, next steps, example run command
+10. Support non-interactive/CI mode via env vars:
+    ```bash
+    VEZA_URL=... VEZA_API_KEY=... SOURCE_API_URL=... SOURCE_API_KEY=... \
+    bash install_<system_name>.sh --non-interactive
+    ```
+11. Generate `.env` with `chmod 600` and explanatory comments.
+12. Accept flags: `--non-interactive`, `--overwrite-env`, `--install-dir <path>`, `--repo-url <url>`, `--branch <name>`
+13. Print final summary: install path, next steps, example run command.
 
 ---
 
