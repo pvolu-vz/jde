@@ -117,25 +117,24 @@ setup_directories() {
 }
 
 clone_or_update_repo() {
-    if [[ -d "${SCRIPTS_DIR}/.git" ]]; then
-        log "Updating existing repository …"
-        git -C "${SCRIPTS_DIR}" fetch origin
-        git -C "${SCRIPTS_DIR}" checkout "${BRANCH}"
-        git -C "${SCRIPTS_DIR}" pull origin "${BRANCH}"
-    else
-        log "Cloning repository (sparse checkout: ${INTEGRATION_SUBDIR}/) …"
-        git clone --branch "${BRANCH}" --depth 1 --filter=blob:none --sparse \
-            "${REPO_URL}" "${SCRIPTS_DIR}"
-        git -C "${SCRIPTS_DIR}" sparse-checkout set "${INTEGRATION_SUBDIR}"
-    fi
-    # Flatten integration files from sub-path to scripts root
-    if [[ -d "${SCRIPTS_DIR}/${INTEGRATION_SUBDIR}" ]]; then
-        log "Staging integration files to ${SCRIPTS_DIR}/ …"
-        find "${SCRIPTS_DIR}/${INTEGRATION_SUBDIR}" -maxdepth 1 -name "*.py" \
-            -exec cp -f {} "${SCRIPTS_DIR}/" \;
-        [[ -f "${SCRIPTS_DIR}/${INTEGRATION_SUBDIR}/requirements.txt" ]] && \
-            cp -f "${SCRIPTS_DIR}/${INTEGRATION_SUBDIR}/requirements.txt" "${SCRIPTS_DIR}/"
-    fi
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+
+    log "Cloning repository …"
+    GIT_TERMINAL_PROMPT=0 git clone --branch "${BRANCH}" --depth 1 --single-branch \
+        "${REPO_URL}" "${tmp_dir}" \
+        || die "git clone failed — verify REPO_URL (${REPO_URL}) and network connectivity"
+
+    [[ -d "${tmp_dir}/${INTEGRATION_SUBDIR}" ]] \
+        || die "Integration directory not found in repo: ${INTEGRATION_SUBDIR}"
+
+    log "Staging integration files to ${SCRIPTS_DIR}/ …"
+    cp -f "${tmp_dir}/${INTEGRATION_SUBDIR}"/*.py  "${SCRIPTS_DIR}/" 2>/dev/null || true
+    [[ -f "${tmp_dir}/${INTEGRATION_SUBDIR}/requirements.txt" ]] \
+        && cp -f "${tmp_dir}/${INTEGRATION_SUBDIR}/requirements.txt" "${SCRIPTS_DIR}/"
+
+    rm -rf "${tmp_dir}"
+    log "Repository cloned ✓"
 }
 
 setup_venv() {
