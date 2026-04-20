@@ -51,7 +51,7 @@ This connector extracts identity and permission data from JD Edwards (JDE) Enter
 ## Quick Start
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/YOUR_REPO/main/integrations/jde/install_jde.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/pvolu-vz/jde/main/integrations/jde/install_jde.sh | sudo bash
 ```
 
 For non-interactive (CI/CD) install:
@@ -76,7 +76,7 @@ sudo bash install_jde.sh --non-interactive
 sudo dnf install -y git python3 python3-pip python3-venv unixODBC-devel
 sudo useradd -r -s /bin/bash -m -d /opt/jde-veza jde-veza
 sudo mkdir -p /opt/jde-veza/scripts /opt/jde-veza/logs
-sudo git clone https://github.com/YOUR_ORG/YOUR_REPO.git /opt/jde-veza/scripts
+sudo git clone https://github.com/pvolu-vz/jde.git /opt/jde-veza/scripts
 cd /opt/jde-veza/scripts/integrations/jde
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt
@@ -91,7 +91,7 @@ chmod 600 .env
 sudo apt-get update && sudo apt-get install -y git python3 python3-pip python3-venv unixodbc-dev
 sudo useradd -r -s /bin/bash -m -d /opt/jde-veza jde-veza
 sudo mkdir -p /opt/jde-veza/scripts /opt/jde-veza/logs
-sudo git clone https://github.com/YOUR_ORG/YOUR_REPO.git /opt/jde-veza/scripts
+sudo git clone https://github.com/pvolu-vz/jde.git /opt/jde-veza/scripts
 cd /opt/jde-veza/scripts/integrations/jde
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt

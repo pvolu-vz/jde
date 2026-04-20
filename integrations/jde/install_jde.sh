@@ -111,9 +111,7 @@ check_python_version() {
 setup_directories() {
     log "Creating directory layout at ${INSTALL_DIR} …"
     mkdir -p "${SCRIPTS_DIR}" "${LOGS_DIR}"
-    chmod 755 "/opt/VEZA"
-    chmod 750 "${INSTALL_DIR}" "${LOGS_DIR}"
-    chmod 700 "${SCRIPTS_DIR}"
+    chmod 755 "/opt/VEZA" "${INSTALL_DIR}" "${SCRIPTS_DIR}" "${LOGS_DIR}"
 }
 
 clone_or_update_repo() {
@@ -209,8 +207,8 @@ VEZA_API_KEY=${veza_api_key}
 # DATASOURCE_NAME=JDE EnterpriseOne
 EOF
 
-    chmod 600 "${env_path}"
-    log ".env created at ${env_path} (permissions: 600) ✓"
+    log ".env created at ${env_path} ✓"
+    warn "Remember to restrict .env permissions before production use: chmod 600 ${env_path}"
 }
 
 print_summary() {
