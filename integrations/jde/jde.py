@@ -497,9 +497,9 @@ def parse_args():
     vz = parser.add_argument_group("Veza")
     vz.add_argument("--veza-url",     help="Veza instance URL (overrides VEZA_URL)")
     vz.add_argument("--veza-api-key", help="Veza API key (overrides VEZA_API_KEY)")
-    vz.add_argument("--provider-name",    default="JD Edwards",
+    vz.add_argument("--provider-name",    default="Oracle JD Edwards",
         help="Provider name displayed in Veza")
-    vz.add_argument("--datasource-name",  default="JDE EnterpriseOne",
+    vz.add_argument("--datasource-name",  default="Oracle JDE EnterpriseOne",
         help="Datasource name displayed in Veza")
 
     run = parser.add_argument_group("Execution")
