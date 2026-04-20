@@ -130,6 +130,9 @@ clone_or_update_repo() {
     cp -f "${tmp_dir}/${INTEGRATION_SUBDIR}"/*.py  "${SCRIPTS_DIR}/" 2>/dev/null || true
     [[ -f "${tmp_dir}/${INTEGRATION_SUBDIR}/requirements.txt" ]] \
         && cp -f "${tmp_dir}/${INTEGRATION_SUBDIR}/requirements.txt" "${SCRIPTS_DIR}/"
+    [[ -f "${tmp_dir}/${INTEGRATION_SUBDIR}/preflight.sh" ]] \
+        && cp -f "${tmp_dir}/${INTEGRATION_SUBDIR}/preflight.sh" "${SCRIPTS_DIR}/" \
+        && chmod 755 "${SCRIPTS_DIR}/preflight.sh"
 
     rm -rf "${tmp_dir}"
     log "Repository cloned ✓"
