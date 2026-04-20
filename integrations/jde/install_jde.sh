@@ -3,11 +3,12 @@
 set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
-INSTALL_DIR="/opt/jde-veza"
+INSTALL_DIR="/opt/VEZA/jde-veza"
 REPO_URL="${REPO_URL:-https://github.com/YOUR_ORG/YOUR_REPO.git}"
 BRANCH="${BRANCH:-main}"
 NON_INTERACTIVE=false
 OVERWRITE_ENV=false
+INTEGRATION_SUBDIR="integrations/jde"
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -72,7 +73,9 @@ check_python_version() {
 setup_directories() {
     log "Creating directory layout at ${INSTALL_DIR} …"
     mkdir -p "${SCRIPTS_DIR}" "${LOGS_DIR}"
-    chmod 750 "${INSTALL_DIR}" "${SCRIPTS_DIR}" "${LOGS_DIR}"
+    chmod 755 "/opt/VEZA"
+    chmod 750 "${INSTALL_DIR}" "${LOGS_DIR}"
+    chmod 700 "${SCRIPTS_DIR}"
 }
 
 clone_or_update_repo() {
@@ -82,8 +85,18 @@ clone_or_update_repo() {
         git -C "${SCRIPTS_DIR}" checkout "${BRANCH}"
         git -C "${SCRIPTS_DIR}" pull origin "${BRANCH}"
     else
-        log "Cloning repository …"
-        git clone --branch "${BRANCH}" --depth 1 "${REPO_URL}" "${SCRIPTS_DIR}"
+        log "Cloning repository (sparse checkout: ${INTEGRATION_SUBDIR}/) …"
+        git clone --branch "${BRANCH}" --depth 1 --filter=blob:none --sparse \
+            "${REPO_URL}" "${SCRIPTS_DIR}"
+        git -C "${SCRIPTS_DIR}" sparse-checkout set "${INTEGRATION_SUBDIR}"
+    fi
+    # Flatten integration files from sub-path to scripts root
+    if [[ -d "${SCRIPTS_DIR}/${INTEGRATION_SUBDIR}" ]]; then
+        log "Staging integration files to ${SCRIPTS_DIR}/ …"
+        find "${SCRIPTS_DIR}/${INTEGRATION_SUBDIR}" -maxdepth 1 -name "*.py" \
+            -exec cp -f {} "${SCRIPTS_DIR}/" \;
+        [[ -f "${SCRIPTS_DIR}/${INTEGRATION_SUBDIR}/requirements.txt" ]] && \
+            cp -f "${SCRIPTS_DIR}/${INTEGRATION_SUBDIR}/requirements.txt" "${SCRIPTS_DIR}/"
     fi
 }
 
@@ -93,7 +106,7 @@ setup_venv() {
         python3 -m venv "${VENV_DIR}"
     fi
     "${VENV_DIR}/bin/pip" install --quiet --upgrade pip
-    "${VENV_DIR}/bin/pip" install --quiet -r "${SCRIPTS_DIR}/integrations/jde/requirements.txt"
+    "${VENV_DIR}/bin/pip" install --quiet -r "${SCRIPTS_DIR}/requirements.txt"
     log "Dependencies installed ✓"
 }
 
@@ -122,7 +135,7 @@ prompt_or_env() {
 }
 
 generate_env_file() {
-    local env_path="${SCRIPTS_DIR}/integrations/jde/.env"
+    local env_path="${SCRIPTS_DIR}/.env"
 
     if [[ -f "${env_path}" && "${OVERWRITE_ENV}" == "false" ]]; then
         warn ".env already exists — skipping generation (use --overwrite-env to replace)"
@@ -168,21 +181,21 @@ print_summary() {
     echo "════════════════════════════════════════════════════════════"
     echo "  JDE → Veza OAA Integration — Installation Complete"
     echo "════════════════════════════════════════════════════════════"
-    echo "  Install path:  ${SCRIPTS_DIR}/integrations/jde/"
+    echo "  Install path:  ${SCRIPTS_DIR}/"
     echo "  Logs:          ${LOGS_DIR}/"
     echo ""
     echo "  Next steps:"
     echo "  1. Review and update credentials:"
-    echo "     ${SCRIPTS_DIR}/integrations/jde/.env"
+    echo "     ${SCRIPTS_DIR}/.env"
     echo ""
     echo "  2. Test with a dry-run:"
-    echo "     cd ${SCRIPTS_DIR}/integrations/jde"
+    echo "     cd ${SCRIPTS_DIR}"
     echo "     ./venv/bin/python3 jde.py --dry-run --save-json --log-level DEBUG"
     echo ""
     echo "  3. Schedule via cron (example — daily at 02:00):"
-    echo "     0 2 * * * jde-veza ${SCRIPTS_DIR}/integrations/jde/venv/bin/python3 \\"
-    echo "       ${SCRIPTS_DIR}/integrations/jde/jde.py \\"
-    echo "       --env-file ${SCRIPTS_DIR}/integrations/jde/.env \\"
+    echo "     0 2 * * * jde-veza ${SCRIPTS_DIR}/venv/bin/python3 \\"
+    echo "       ${SCRIPTS_DIR}/jde.py \\"
+    echo "       --env-file ${SCRIPTS_DIR}/.env \\"
     echo "       --log-level INFO >> ${LOGS_DIR}/cron.log 2>&1"
     echo "════════════════════════════════════════════════════════════"
 }
