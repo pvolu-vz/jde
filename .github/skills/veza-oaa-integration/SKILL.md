@@ -75,7 +75,7 @@ The preflight script validates all prerequisites before deployment. Structure it
 4. **Network Connectivity** — TCP port check to source system host:port; HTTPS check to `$VEZA_URL`; report latency
 5. **API Authentication** — Live auth test against the source system (method matches integration type); live Veza API key test via `GET /api/v1/providers`; display HTTP status and partial response on failure
 6. **Veza Endpoint Access** — POST to Veza Query API to confirm the key has read permissions
-7. **Deployment Structure** — Confirm `<slug>.py` exists and is readable; check `logs/` directory writability; report running user
+7. **Deployment Structure** — Confirm `<system_name>.py` exists and is readable; check `logs/` directory writability; report running user
 
 Script behavior:
 - `--all` flag → run all checks non-interactively; exit 0 (all pass) or 1 (any failure)
