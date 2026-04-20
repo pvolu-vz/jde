@@ -327,7 +327,7 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
             app.add_local_role(name=rid)
             role_ids.add(rid)
             log.debug("Auto-created missing role: %s", rid)
-        app.local_users[uid].add_role(role=rid)
+        app.local_users[uid].add_role(role=rid, apply_to_application=True)
         assignments += 1
 
     log.info("User-role assignments: %d", assignments)

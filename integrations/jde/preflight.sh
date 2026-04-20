@@ -494,6 +494,131 @@ test_veza_endpoint() {
     fi
 }
 
+validate_sql_queries() {
+    print_header "SQL Query Validation (TOP 2 rows per table)"
+
+    if [ ! -f "$ENV_FILE" ]; then
+        print_fail ".env file not found — cannot run SQL validation"
+        return 1
+    fi
+
+    source "$ENV_FILE" 2>/dev/null || true
+
+    if [[ -z "$JDE_DB_SERVER" || -z "$JDE_DB_USER" || -z "$JDE_DB_PASSWORD" ]]; then
+        print_warning "JDE DB credentials not configured, skipping SQL query validation"
+        return 1
+    fi
+
+    DB_PORT="${JDE_DB_PORT:-1433}"
+    DB_NAME="${JDE_DB_NAME:-master}"
+    SCHEMA="${JDE_DB_SCHEMA:-dbo}"
+
+    VENV_PYTHON="${SCRIPT_DIR}/venv/bin/python"
+    PYTHON_CMD=$([[ -x "$VENV_PYTHON" ]] && echo "$VENV_PYTHON" || echo "python3")
+
+    print_info "Schema: '${SCHEMA}' | DB: ${DB_NAME} | Server: ${JDE_DB_SERVER}:${DB_PORT}"
+    echo ""
+
+    DB_RESULT=$("$PYTHON_CMD" - <<PYEOF 2>&1
+import sys
+try:
+    import pyodbc
+    drivers = [d for d in pyodbc.drivers() if 'SQL Server' in d or 'FreeTDS' in d]
+    if not drivers:
+        print("NO_DRIVER||No ODBC driver found")
+        sys.exit(1)
+    driver = sorted(drivers)[-1]
+    conn_str = (
+        f"DRIVER={{{driver}}};"
+        f"SERVER=${JDE_DB_SERVER},{DB_PORT};"
+        f"DATABASE=${DB_NAME};"
+        f"UID=${JDE_DB_USER};"
+        f"PWD=${JDE_DB_PASSWORD};"
+        "TrustServerCertificate=yes;"
+    )
+    conn = pyodbc.connect(conn_str, timeout=10)
+    schema = "${SCHEMA}"
+
+    queries = [
+        ("F0092 (Users)",
+         f"SELECT TOP 2 RTRIM(GNUSER) AS user_id, RTRIM(GNSTTS) AS status, "
+         f"CAST(GNEADD AS VARCHAR(20)) AS address_book_number FROM {schema}.F0092"),
+        ("F00926 (Roles / User-Role assignments)",
+         f"SELECT TOP 2 RTRIM(WKROLE) AS role_id, RTRIM(WKUSER) AS user_id, "
+         f"RTRIM(WKRTYPE) AS role_type FROM {schema}.F00926 WHERE WKROLE IS NOT NULL"),
+        ("F9860 (Programs / Objects)",
+         f"SELECT TOP 2 RTRIM(SIOBNM) AS program_id, RTRIM(SIOTP) AS object_type, "
+         f"RTRIM(SIDEMD) AS description FROM {schema}.F9860 WHERE SIOTP IN ('APPL','UBE')"),
+        ("F00950 (Security assignments)",
+         f"SELECT TOP 2 RTRIM(WSAPID) AS program_id, RTRIM(WSUSER) AS user_or_role, "
+         f"WSADD AS allow_add, WSCHG AS allow_change, WSDEL AS allow_delete, "
+         f"WSRQR AS allow_inquiry, WSRPT AS allow_run FROM {schema}.F00950 WHERE WSAPID IS NOT NULL"),
+        ("F0101 (Address Book)",
+         f"SELECT TOP 2 ABAN8, RTRIM(ABALPH) AS name FROM {schema}.F0101"),
+        ("F01151 (Email addresses)",
+         f"SELECT TOP 2 WAAB8, RTRIM(WAEMAL) AS email FROM {schema}.F01151 WHERE WAEMAL IS NOT NULL"),
+    ]
+
+    for name, sql in queries:
+        try:
+            cur = conn.cursor()
+            cur.execute(sql)
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            print(f"OK|{name}|{len(rows)} row(s) returned")
+            for row in rows:
+                vals = "  |  ".join(
+                    f"{c}={str(v).strip()[:40]!r}" if v is not None else f"{c}=NULL"
+                    for c, v in zip(cols, row)
+                )
+                print(f"ROW|{name}|{vals}")
+        except Exception as e:
+            print(f"FAIL|{name}|{str(e)}")
+
+    conn.close()
+except pyodbc.Error as e:
+    print(f"CONN_ERROR||{str(e)}")
+except Exception as e:
+    print(f"EXCEPTION||{str(e)}")
+PYEOF
+)
+
+    CONN_OK=true
+    while IFS='|' read -r prefix qname detail; do
+        case "$prefix" in
+            OK)
+                print_success "$qname — $detail"
+                ;;
+            ROW)
+                echo -e "    ${BLUE}↳ $detail${NC}"
+                ;;
+            FAIL)
+                print_fail "$qname — $detail"
+                CONN_OK=false
+                ;;
+            CONN_ERROR|EXCEPTION)
+                print_fail "Database connection failed: $detail"
+                CONN_OK=false
+                break
+                ;;
+            NO_DRIVER)
+                print_fail "$detail"
+                CONN_OK=false
+                break
+                ;;
+        esac
+    done <<< "$DB_RESULT"
+
+    if [[ "$CONN_OK" == "true" ]]; then
+        echo ""
+        print_info "Schema '${SCHEMA}' validated — all queried tables are accessible"
+    else
+        echo ""
+        echo -e "  ${YELLOW}Check that JDE_DB_SCHEMA='${SCHEMA}' matches the actual database schema${NC}"
+        echo -e "  ${YELLOW}and that the service account has SELECT on the six JDE tables${NC}"
+    fi
+}
+
 validate_deployment_structure() {
     print_header "Deployment Structure Validation"
 
@@ -568,6 +693,8 @@ run_all_checks() {
     validate_api_endpoints
     echo ""
     validate_deployment_structure
+    echo ""
+    validate_sql_queries
 
     print_summary
 }
@@ -695,6 +822,9 @@ show_menu() {
     echo "  6) API Endpoint Accessibility (Veza)"
     echo "  7) Deployment Structure"
     echo ""
+    echo -e "${BOLD}SQL Validation:${NC}"
+    echo "  12) SQL Query Validation (TOP 2 rows per JDE table)"
+    echo ""
     echo -e "${BOLD}Comprehensive Tests:${NC}"
     echo "  8) Run ALL Checks (recommended)"
     echo ""
@@ -729,6 +859,7 @@ main() {
             9) display_current_config ;;
             10) generate_env_template ;;
             11) install_dependencies ;;
+            12) validate_sql_queries ;;
             0)
                 echo -e "\n${BLUE}Exiting. Logs saved to: $LOG_FILE${NC}"
                 exit 0
