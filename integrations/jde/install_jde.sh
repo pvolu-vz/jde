@@ -4,7 +4,7 @@ set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 INSTALL_DIR="/opt/VEZA/jde-veza"
-REPO_URL="${REPO_URL:-https://github.com/YOUR_ORG/YOUR_REPO.git}"
+REPO_URL="${REPO_URL:-https://github.com/pvolu-vz/jde.git}"
 BRANCH="${BRANCH:-main}"
 NON_INTERACTIVE=false
 OVERWRITE_ENV=false
