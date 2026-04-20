@@ -458,6 +458,7 @@ def push_to_veza(
             provider_name=provider_name,
             data_source_name=datasource_name,
             application_object=app,
+            create_provider=True,
         )
         if response.get("warnings"):
             for w in response["warnings"]:
