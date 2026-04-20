@@ -24,7 +24,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPTS_DIR="${INSTALL_DIR}/scripts"
-LOGS_DIR="${INSTALL_DIR}/logs"
 VENV_DIR="${SCRIPTS_DIR}/venv"
 
 # ── Helper functions ──────────────────────────────────────────────────────────
@@ -110,9 +109,8 @@ check_python_version() {
 
 setup_directories() {
     log "Creating directory layout at ${INSTALL_DIR} …"
-    mkdir -p "${SCRIPTS_DIR}" "${LOGS_DIR}" "${SCRIPTS_DIR}/logs"
-    chmod 755 "/opt/VEZA" "${INSTALL_DIR}" "${SCRIPTS_DIR}" "${LOGS_DIR}"
-    chmod 777 "${SCRIPTS_DIR}/logs"
+    mkdir -p "${SCRIPTS_DIR}"
+    chmod 755 "/opt/VEZA" "${INSTALL_DIR}" "${SCRIPTS_DIR}"
 }
 
 clone_or_update_repo() {
@@ -221,8 +219,6 @@ print_summary() {
     echo "  JDE → Veza OAA Integration — Installation Complete"
     echo "════════════════════════════════════════════════════════════"
     echo "  Install path:  ${SCRIPTS_DIR}/"
-    echo "  Logs:          ${LOGS_DIR}/"
-    echo ""
     echo "  Next steps:"
     echo "  1. Review and update credentials:"
     echo "     ${SCRIPTS_DIR}/.env"
@@ -235,7 +231,7 @@ print_summary() {
     echo "     0 2 * * * jde-veza ${SCRIPTS_DIR}/venv/bin/python3 \\"
     echo "       ${SCRIPTS_DIR}/jde.py \\"
     echo "       --env-file ${SCRIPTS_DIR}/.env \\"
-    echo "       --log-level INFO >> ${LOGS_DIR}/cron.log 2>&1"
+    echo "       --log-level INFO"
     echo "════════════════════════════════════════════════════════════"
 }
 
