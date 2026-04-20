@@ -102,6 +102,143 @@ chmod 600 .env
 
 ---
 
+## Pre-Flight Validation
+
+Before running `jde.py` for the first time, use `preflight.sh` to verify that all prerequisites are in place — Python version, ODBC driver, Python packages, `.env` configuration, SQL Server connectivity, and Veza API authentication.
+
+### Run all checks at once
+
+```bash
+cd /opt/jde-veza/scripts/integrations/jde
+chmod +x preflight.sh
+./preflight.sh --all
+```
+
+Pass `--all` for automated/CI execution. Exit code is `0` on success, `1` if any critical check fails.
+
+### Interactive menu
+
+```bash
+./preflight.sh
+```
+
+```
+╔════════════════════════════════════════════════════════════╗
+║     JD Edwards EnterpriseOne Pre-Flight Validation         ║
+╚════════════════════════════════════════════════════════════╝
+
+Validation Checks:
+  1) System Requirements (Python, pip, ODBC driver, OS)
+  2) Python Dependencies (packages)
+  3) Configuration File (.env validation)
+  4) Network Connectivity (SQL Server port, Veza HTTPS)
+  5) API Authentication (SQL Server + Veza API key)
+  6) API Endpoint Accessibility (Veza)
+  7) Deployment Structure
+
+Comprehensive Tests:
+  8) Run ALL Checks (recommended)
+
+Utilities:
+  9) Display Current Configuration
+  10) Generate Template .env File
+  11) Install Python Dependencies
+
+  0) Exit
+```
+
+### What each check validates
+
+| Option | What it checks |
+|---|---|
+| **1 — System Requirements** | Python ≥ 3.9, pip3, virtual environment, OS, curl, jq, ODBC driver (`odbcinst -q -d`) |
+| **2 — Python Dependencies** | Each package in `requirements.txt`: `oaaclient`, `python-dotenv`, `requests`, `urllib3`, `pyodbc` |
+| **3 — Configuration File** | `.env` exists, permissions are `600`, all required vars set and not placeholder values |
+| **4 — Network Connectivity** | TCP reachability to `$JDE_DB_SERVER:$JDE_DB_PORT` and HTTPS to `$VEZA_URL:443` |
+| **5 — API Authentication** | Live `pyodbc` connection with `SELECT @@VERSION`; Veza `GET /api/v1/providers` with Bearer token |
+| **6 — API Endpoint Access** | Veza query API `POST /api/v1/assessments/query_spec:nodes` |
+| **7 — Deployment Structure** | `jde.py` exists and is executable, `logs/` writability, service account |
+
+### Example output (successful run)
+
+```
+=== Running Complete Pre-Flight Validation ===
+
+=== System Requirements Validation ===
+✓ Python version 3.11.4 (>= 3.9 required)
+✓ pip3 version 23.2.1 installed
+⚠ Not running in virtual environment (recommended but not required)
+ℹ Operating System: Red Hat Enterprise Linux 9.2
+✓ curl installed (required for API tests)
+⚠ jq not found (optional). Will use Python for JSON parsing
+✓ ODBC driver found: ODBC Driver 18 for SQL Server
+
+=== Python Dependencies Validation ===
+ℹ Using venv Python: ./venv/bin/python
+✓ requests==2.31.0 installed
+✓ python-dotenv==1.0.1 installed
+✓ oaaclient==1.1.2 installed
+✓ pyodbc==5.0.1 installed
+✓ urllib3==2.1.0 installed
+
+=== Configuration File Validation ===
+✓ .env file exists
+✓ .env file permissions are secure (600)
+✓ JDE_DB_SERVER set
+✓ JDE_DB_PORT set
+✓ JDE_DB_NAME set
+✓ JDE_DB_USER set
+✓ JDE_DB_PASSWORD set (abcd1234...)
+✓ VEZA_URL set
+✓ VEZA_API_KEY set (eyJhbGci...)
+
+=== Network Connectivity Tests ===
+✓ JDE SQL Server (sql-server.example.com:1433) - TCP port reachable
+✓ Veza Instance (acme.veza.com:443) - HTTP 200 - 123.456ms
+
+=== API Authentication Tests ===
+✓ Veza API authentication successful (HTTP 200)
+✓ SQL Server connection successful
+ℹ Server version: Microsoft SQL Server 2019
+
+=== Validation Summary ===
+Passed:   18
+Failed:   0
+Warnings: 2
+
+✓ All critical checks passed! JDE deployment is ready.
+
+To run jde.py:
+  cd /opt/jde-veza/scripts/integrations/jde
+  ./venv/bin/python3 jde.py --dry-run --save-json
+```
+
+### Generating a fresh `.env` template
+
+If no `.env` file exists yet, Option 10 creates one from the template and sets permissions to `600`:
+
+```bash
+./preflight.sh
+# Select: 10
+```
+
+### Installing dependencies
+
+Option 11 creates the `venv/` directory if it does not exist and installs all packages from `requirements.txt`:
+
+```bash
+./preflight.sh
+# Select: 11
+```
+
+Equivalent to:
+```bash
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+```
+
+---
+
 ## Usage
 
 ```
