@@ -88,8 +88,8 @@ install_system_deps() {
 
     # ODBC dev headers for pyodbc
     case "${PKG_MGR}" in
-        dnf|yum) _install_pkg unixODBC-devel ;;
-        apt-get) _install_pkg unixodbc-dev ;;
+        dnf|yum) _install_pkg unixODBC ;;
+        apt-get) _install_pkg unixodbc ;;
     esac
 
     log "System dependencies ready ✓"
