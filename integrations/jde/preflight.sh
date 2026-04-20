@@ -410,7 +410,7 @@ try:
     driver = sorted(drivers)[-1]
     conn_str = (
         f"DRIVER={{{driver}}};"
-        f"SERVER=${JDE_DB_SERVER},{DB_PORT};"
+        f"SERVER=${JDE_DB_SERVER},${DB_PORT};"
         f"DATABASE=${DB_NAME};"
         f"UID=${JDE_DB_USER};"
         f"PWD=${JDE_DB_PASSWORD};"
@@ -530,7 +530,7 @@ try:
     driver = sorted(drivers)[-1]
     conn_str = (
         f"DRIVER={{{driver}}};"
-        f"SERVER=${JDE_DB_SERVER},{DB_PORT};"
+        f"SERVER=${JDE_DB_SERVER},${DB_PORT};"
         f"DATABASE=${DB_NAME};"
         f"UID=${JDE_DB_USER};"
         f"PWD=${JDE_DB_PASSWORD};"
