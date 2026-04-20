@@ -60,7 +60,7 @@ Skip requirements gathering only if the user's request already provides enough d
 
 > **Before writing code:** Confirm you have read all three reference files from `### Reference Materials` above. Use the logging pattern, artifact specs, and community connector examples from those files.
 
-Use the system name as a slug (lowercase, hyphens). Save all artifacts under `./integrations/<system_slug>/`. Produce all five artifacts:
+Use the system name as a slug (lowercase, hyphens). Save all artifacts under `./integrations/<system_slug>/`. Produce all six artifacts:
 
 - **A.** `./integrations/<slug>/<slug>.py` — Main Python integration script
 - **B.** `./integrations/<slug>/install_<slug>.sh` — Bash one-command installer
@@ -68,6 +68,26 @@ Use the system name as a slug (lowercase, hyphens). Save all artifacts under `./
 - **D.** `./integrations/<slug>/.env.example` — Credential template (no real values)
 - **E.** `./integrations/<slug>/README.md` — Full deployment documentation
 - **F.** `./integrations/<slug>/samples/` — Read if it exists; create with `SAMPLES.md` placeholder if it does not
+- **G.** `./integrations/<slug>/preflight.sh` — Pre-flight validation script
+
+**Artifact G — `preflight.sh` spec:**
+
+The preflight script validates that all prerequisites are met before deployment. It must include these validation sections, each as a separate function:
+
+1. **System Requirements** — Python 3.9+, pip3, curl, jq (optional warning); any database/driver prerequisites specific to the source type (e.g., ODBC driver for SQL Server, Oracle Instant Client for Oracle DB)
+2. **Python Dependencies** — Check every package in `requirements.txt` is importable; prefer `./venv/bin/python` over system python3; print version for each
+3. **Configuration** — Confirm `.env` exists; warn if permissions are not 600; source and validate every required env var is set and not a placeholder (`your_*` pattern); mask `PASSWORD|KEY|TOKEN|SECRET` values in output
+4. **Network Connectivity** — TCP port check to source system host:port; HTTPS check to `$VEZA_URL`; report latency
+5. **API Authentication** — Live auth test against the source system (method matches the integration type); live Veza API key test via `GET /api/v1/providers`; display HTTP status and partial response on failure
+6. **Veza Endpoint Access** — POST to Veza Query API to confirm the key has read permissions
+7. **Deployment Structure** — Confirm `<slug>.py` exists and is readable; check for `logs/` directory writability; report running user
+
+Script behavior:
+- Run `--all` flag → execute all checks non-interactively and exit with code 0 (all pass) or 1 (any failure)
+- Run with no arguments → show a numbered interactive menu covering the same checks plus utilities: display current config, generate `.env` template, install dependencies
+- Write timestamped log to `./integrations/<slug>/preflight_<YYYYMMDD_HHMMSS>.log`
+- Use color output (GREEN ✓ pass, RED ✗ fail, YELLOW ⚠ warning, BLUE ℹ info); maintain `TESTS_PASSED`, `TESTS_FAILED`, `TESTS_WARNING` counters; print summary at end
+- Use `set -o pipefail`; do not use `set -e` (checks must continue past individual failures)
 
 All scripts must follow this CLI contract:
 
