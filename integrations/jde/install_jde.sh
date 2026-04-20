@@ -110,8 +110,8 @@ check_python_version() {
 
 setup_directories() {
     log "Creating directory layout at ${INSTALL_DIR} …"
-    mkdir -p "${SCRIPTS_DIR}" "${LOGS_DIR}"
-    chmod 755 "/opt/VEZA" "${INSTALL_DIR}" "${SCRIPTS_DIR}" "${LOGS_DIR}"
+    mkdir -p "${SCRIPTS_DIR}" "${LOGS_DIR}" "${SCRIPTS_DIR}/logs"
+    chmod 755 "/opt/VEZA" "${INSTALL_DIR}" "${SCRIPTS_DIR}" "${LOGS_DIR}" "${SCRIPTS_DIR}/logs"
 }
 
 clone_or_update_repo() {
