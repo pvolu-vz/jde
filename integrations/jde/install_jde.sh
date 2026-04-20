@@ -37,29 +37,63 @@ require_root() {
 }
 
 detect_os() {
-    if   command -v dnf  &>/dev/null; then PKG_MGR="dnf"
-    elif command -v yum  &>/dev/null; then PKG_MGR="yum"
+    if   command -v dnf    &>/dev/null; then PKG_MGR="dnf"
+    elif command -v yum    &>/dev/null; then PKG_MGR="yum"
     elif command -v apt-get &>/dev/null; then PKG_MGR="apt-get"
-    else die "Unsupported Linux distribution — install git, python3, python3-pip, python3-venv manually"
+    else die "Unsupported Linux distribution — install git, python3, python3-pip manually"
     fi
-    log "Package manager: ${PKG_MGR}"
+    OS_ID="unknown"
+    [[ -f /etc/os-release ]] && OS_ID="$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')"
+    log "Package manager: ${PKG_MGR}  OS: ${OS_ID}"
+}
+
+_install_pkg() {
+    local pkg="$1"
+    case "${PKG_MGR}" in
+        dnf|yum) "${PKG_MGR}" install -y "${pkg}" >/dev/null ;;
+        apt-get) apt-get install -y "${pkg}" >/dev/null ;;
+    esac
 }
 
 install_system_deps() {
     log "Installing system dependencies …"
+
+    [[ "${PKG_MGR}" == "apt-get" ]] && apt-get update -q
+
+    # git — required for repo clone
+    command -v git &>/dev/null || _install_pkg git
+
+    # curl — skip on Amazon Linux to avoid curl-minimal conflict; wget is available there
+    if ! command -v curl &>/dev/null; then
+        if [[ "${OS_ID}" == "amzn" ]]; then
+            warn "Skipping curl install on Amazon Linux (curl-minimal conflict); wget will be used instead"
+        else
+            _install_pkg curl
+        fi
+    fi
+
+    # python3
+    command -v python3 &>/dev/null || _install_pkg python3
+
+    # pip
+    python3 -m pip --version &>/dev/null || _install_pkg python3-pip
+
+    # venv — built-in on Amazon Linux 2023 / RHEL 9+; fall back to python3-virtualenv
+    if ! python3 -m venv --help &>/dev/null; then
+        warn "python3 venv not built-in; installing venv package …"
+        case "${PKG_MGR}" in
+            dnf|yum) _install_pkg python3-virtualenv ;;
+            apt-get) _install_pkg python3-venv ;;
+        esac
+    fi
+
+    # ODBC dev headers for pyodbc
     case "${PKG_MGR}" in
-        dnf|yum)
-            # python3-venv is not a separate package on Amazon Linux 2023 / RHEL 9+;
-            # venv is included in python3 itself, so skip it to avoid "No match" errors.
-            "${PKG_MGR}" install -y git curl python3 python3-pip unixODBC-devel || true
-            # Install python3-venv only if available (older RHEL/CentOS)
-            "${PKG_MGR}" install -y python3-venv 2>/dev/null || true
-            ;;
-        apt-get)
-            apt-get update -q
-            apt-get install -y git curl python3 python3-pip python3-venv unixodbc-dev
-            ;;
+        dnf|yum) _install_pkg unixODBC-devel ;;
+        apt-get) _install_pkg unixodbc-dev ;;
     esac
+
+    log "System dependencies ready ✓"
 }
 
 check_python_version() {
@@ -130,10 +164,10 @@ prompt_or_env() {
     fi
 
     if [[ "${is_secret}" == "true" ]]; then
-        read -r -s -p "${prompt_text}: " value
-        echo "" >&2
+        IFS= read -r -s -p "${prompt_text}: " value </dev/tty
+        echo "" >/dev/tty
     else
-        read -r -p "${prompt_text}: " value
+        IFS= read -r -p "${prompt_text}: " value </dev/tty
     fi
     echo "${value}"
 }
