@@ -274,6 +274,18 @@ def load_from_db(config: dict) -> dict:
             columns = [col[0] for col in cursor.description]
             data[key] = [dict(zip(columns, row)) for row in cursor.fetchall()]
             log.info("  → %d %s records", len(data[key]), key)
+
+        # F9860 only covers APPL/UBE; F00950 has security for all object types.
+        # Supplement the program list so no security record is skipped due to a
+        # missing program_id.
+        cursor.execute(_apply_schema(_SQL_PROGRAMS_FALLBACK, schema))
+        cols = [col[0] for col in cursor.description]
+        f00950_programs = [dict(zip(cols, row)) for row in cursor.fetchall()]
+        existing_ids = {r["program_id"] for r in data.get("programs", [])}
+        extra = [r for r in f00950_programs if r["program_id"] not in existing_ids]
+        if extra:
+            data["programs"].extend(extra)
+            log.info("  → %d additional programs from F00950 (not in F9860)", len(extra))
     finally:
         conn.close()
 
@@ -464,9 +476,9 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     log.info("Security records processed: %d  |  skipped: %d", perms_added, skipped)
     log.info(
         "Payload summary — Users: %d  Roles: %d  Programs: %d  SecurityRecords: %d",
-        len(data.get("users", [])),
-        len(data.get("roles", [])),
-        len(data.get("programs", [])),
+        len(user_ids),
+        len(role_ids),
+        len(program_ids),
         len(data.get("security", [])),
     )
     return app
