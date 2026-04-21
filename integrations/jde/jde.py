@@ -73,11 +73,9 @@ JDE_PERMISSIONS: Dict[str, List[OAAPermission]] = {
 
 _SQL_USERS = """
     SELECT
-        RTRIM(u.GNUSER)                      AS user_id,
-        RTRIM(COALESCE(u.GNDSP, u.GNUSER))  AS display_name,
-        RTRIM(u.GNSTTS)                      AS status
+        RTRIM(u.GNDSP)   AS display_name,
+        RTRIM(u.GNSTTS)  AS status
     FROM {schema}.F0092 u
-    WHERE RTRIM(u.GNUSER) NOT IN ('', 'JDE')
 """
 
 _SQL_ROLES = """
