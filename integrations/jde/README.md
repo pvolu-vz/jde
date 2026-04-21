@@ -17,12 +17,46 @@ This connector extracts identity and permission data from JD Edwards (JDE) Enter
 
 | Veza Permission | JDE Security Flag | OAA Canonical Types |
 |---|---|---|
-| `view` | WSRQR = Y | DataRead |
-| `add` | WSADD = Y | DataRead, DataWrite |
-| `change` | WSCHG = Y | DataRead, DataWrite |
-| `delete` | WSDEL = Y | DataRead, DataWrite, NonIdempotentWrite |
-| `run` | WSRPT = Y | DataRead |
-| `full_access` | All CRUD flags = Y | DataRead, DataWrite, NonIdempotentWrite, MetadataRead, MetadataWrite |
+| `view` | FSIOK = Y | DataRead |
+| `add` | FSA = Y | DataRead, DataWrite |
+| `change` | FSCHNG = Y | DataRead, DataWrite |
+| `delete` | FSDLT = Y | DataRead, DataWrite, DataDelete |
+| `run` | FSRUN = Y | DataRead |
+| `full_access` | All CRUD flags = Y | DataRead, DataWrite, DataDelete, MetadataRead, MetadataWrite |
+
+---
+
+## Entity Relationship Map
+
+The diagram below shows how JDE source tables map to Veza OAA entities and how those entities relate to each other in the Veza Access Graph.
+
+```mermaid
+graph LR
+    subgraph JDE["📊 JDE EnterpriseOne — Source Tables"]
+        F0092["F0092 · F0101 · F01151\nUser Master + Address Book + Email"]
+        F00926["F00926\nRole Definitions + User Assignments"]
+        F9860["F9860 · F00950\nObject Librarian / Programs (fallback)"]
+        F00950["F00950\nSecurity Matrix"]
+    end
+
+    subgraph Veza["🔷 Veza Access Graph — OAA CustomApplication"]
+        LU["Local User"]
+        LR["Local Role"]
+        AR["Application Resource\n(Program / UBE)"]
+        CP["Custom Permission\nview · add · change · delete · run · full_access"]
+    end
+
+    F0092  -->|"extract users"| LU
+    F00926 -->|"extract roles"| LR
+    F00926 -->|"user-role membership"| LU
+    F9860  -->|"extract programs"| AR
+    F00950 -->|"map flags → permissions"| CP
+
+    LU -->|"member of"| LR
+    LR -->|"has permission"| CP
+    LU -->|"has permission"| CP
+    CP -->|"on resource"| AR
+```
 
 ---
 
@@ -40,7 +74,7 @@ This connector extracts identity and permission data from JD Edwards (JDE) Enter
 
 ## Prerequisites
 
-- Python 3.8 or later
+- Python 3.9 or later
 - Microsoft ODBC Driver 17 or 18 for SQL Server ([install guide](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server))
 - Read access to the following JDE tables: `F0092`, `F00926`, `F9860`, `F00950`, `F0101`, `F01151`
 - Veza API key with permission to create/update providers and datasources
@@ -443,6 +477,50 @@ sudo apt-get install -y msodbcsql18
 ---
 
 ## Changelog
+
+### v1.11 — Schema, collation, and program fallback (2026-04-21)
+- Fixed SQL column references to match the actual JDE table schema after environment-specific differences were observed
+- Added collation handling (`COLLATE SQL_Latin1_General_CP1_CS_AS`) for non-ASCII JDE values
+- Added fallback: if `F9860` (Object Librarian) is not accessible, the program list is derived from distinct program references in `F00950`
+
+### v1.10 — System account filtering (2026-04-21)
+- Skips built-in JDE system accounts `EVERYONE`, `GNEADD`, `GNUSER`, and `GNDSP` during user and role extraction
+- Prevents internal JDE system principals from appearing in the Veza access graph
+
+### v1.9 — Runtime progress display (2026-04-21)
+- Added real-time progress output to the terminal while `jde.py` is running (entity counts per step)
+
+### v1.8 — Preflight SQL validation — Option 12 (2026-04-21)
+- Added SQL Query Validation check to the preflight menu (Option 12)
+- Runs `SELECT TOP 2` against all six JDE tables to verify schema, column names, and SELECT access
+
+### v1.7 — Dependency updates (2026-04-20)
+- Updated `oaaclient`, `pyodbc`, `requests`, and `urllib3` to latest compatible versions
+
+### v1.6 — Provider and datasource naming (2026-04-20)
+- Standardized default provider name to `JD Edwards` and datasource name to `JDE EnterpriseOne`
+- Both remain overridable via `--provider-name` and `--datasource-name`
+
+### v1.5 — Role assignment fix (2026-04-20)
+- Fixed user-role assignment logic to correctly associate users with their JDE roles from `F00926`
+
+### v1.4 — CLI parameter handling (2026-04-20)
+- Made `--mssql-server`, `--mssql-db`, `--mssql-user`, `--mssql-password`, `--veza-url`, `--veza-api-key` optional on the CLI when supplied via `.env`
+- All credential parameters fall back gracefully to environment variables
+
+### v1.3 — Logging directory fixes (2026-04-20)
+- Fixed log folder path resolution to ensure `logs/` is created relative to the script location
+- Corrected log directory permissions
+
+### v1.2 — Preflight validation script (2026-04-20)
+- Added `preflight.sh` with 7-section validation: system requirements, Python dependencies, `.env` config, network connectivity, API authentication, Veza endpoint access, deployment structure
+- Interactive numbered menu and `--all` batch mode (exit code `0` on success, `1` on any failure)
+- Timestamped log written to `integrations/jde/preflight_<YYYYMMDD_HHMMSS>.log`
+
+### v1.1 — Installer and deployment fixes (2026-04-20)
+- Set default `REPO_URL` to `pvolu-vz/jde` in installer
+- Changed deployment directory permissions from `700` to `755`
+- Fixed repository URLs in README
 
 ### v1.0 — Initial release
 - Full User → Role → Program security model from F0092, F00926, F9860, F00950
