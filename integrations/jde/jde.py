@@ -73,26 +73,37 @@ JDE_PERMISSIONS: Dict[str, List[OAAPermission]] = {
 
 _SQL_USERS = """
     SELECT
-        RTRIM(u.GNSTTS)  AS status
-    FROM {schema}.F0092 u
+        RTRIM(u.ULUSER)   AS user_id,
+        RTRIM(u.ULLUSER)  AS display_name,
+        RTRIM(a.ABALPH)   AS full_name,
+        a.ABAN8           AS address_book_number,
+        RTRIM(w.EAEMAL)   AS email
+    FROM {schema}.F0092L u
+    LEFT JOIN {schema}.F0101 a ON RTRIM(u.ULUSER) = RTRIM(a.ABALKY)
+    LEFT JOIN (
+        SELECT EAAN8, EAEMAL,
+               ROW_NUMBER() OVER (PARTITION BY EAAN8 ORDER BY EAIDLN) AS rn
+        FROM {schema}.F01151
+        WHERE EAEMAL IS NOT NULL AND RTRIM(EAEMAL) != ''
+    ) w ON a.ABAN8 = w.EAAN8 AND w.rn = 1
 """
 
 _SQL_ROLES = """
     SELECT DISTINCT
-        RTRIM(r.WKROLE)  AS role_id,
-        RTRIM(r.WKRTYPE) AS role_type
+        RTRIM(r.AUWUID)      AS role_id,
+        RTRIM(r.AUROLEDESC)  AS role_desc
     FROM {schema}.F00926 r
-    WHERE r.WKROLE IS NOT NULL
-      AND RTRIM(r.WKROLE) NOT IN ('', 'EVERYONE')
+    WHERE r.AUWUID IS NOT NULL
+      AND RTRIM(r.AUWUID) NOT IN ('', 'EVERYONE')
 """
 
 _SQL_USER_ROLES = """
     SELECT
-        RTRIM(r.WKUSER) AS user_id,
-        RTRIM(r.WKROLE) AS role_id
+        RTRIM(r.AUUSER) AS user_id,
+        RTRIM(r.AUWUID) AS role_id
     FROM {schema}.F00926 r
-    WHERE r.WKUSER IS NOT NULL AND r.WKROLE IS NOT NULL
-      AND RTRIM(r.WKUSER) != '' AND RTRIM(r.WKROLE) != ''
+    WHERE r.AUUSER IS NOT NULL AND r.AUWUID IS NOT NULL
+      AND RTRIM(r.AUUSER) != '' AND RTRIM(r.AUWUID) != ''
 """
 
 _SQL_PROGRAMS = """
@@ -107,21 +118,44 @@ _SQL_PROGRAMS = """
       AND RTRIM(o.SIOBNM) != ''
 """
 
+_SQL_USER_SECURITY = """
+    SELECT
+        RTRIM(s.SCUSER)    AS user_id,
+        RTRIM(s.SCSECTPE)  AS security_type,
+        RTRIM(s.SCUGRP)    AS user_group,
+        s.SCATTEMPTS       AS login_attempts,
+        s.SCSECLST         AS last_security_date
+    FROM {schema}.F98OWSEC s
+    WHERE s.SCUSER IS NOT NULL
+      AND RTRIM(s.SCUSER) != ''
+"""
+
+_SQL_ROLE_HIERARCHY = """
+    SELECT
+        RTRIM(r.RLFRROLE)  AS from_role,
+        RTRIM(r.RLTOROLE)  AS to_role,
+        RTRIM(r.RLROLETYP) AS role_type,
+        RTRIM(r.RLSYSROLE) AS system_role,
+        RTRIM(r.RLDEFROLE) AS default_role
+    FROM {schema}.F95921 r
+    WHERE r.RLFRROLE IS NOT NULL AND r.RLTOROLE IS NOT NULL
+      AND RTRIM(r.RLFRROLE) != '' AND RTRIM(r.RLTOROLE) != ''
+"""
+
 _SQL_SECURITY = """
     SELECT
-        RTRIM(s.WSAPID)  AS program_id,
-        RTRIM(s.WSUSER)  AS user_or_role,
-        RTRIM(s.WSSYST)  AS product_code,
-        s.WSADD          AS allow_add,
-        s.WSCHG          AS allow_change,
-        s.WSDEL          AS allow_delete,
-        s.WSRQR          AS allow_inquiry,
-        s.WSRPT          AS allow_run,
-        s.WSNOACC        AS no_access
+        RTRIM(s.FSOBNM)  AS program_id,
+        RTRIM(s.FSUSER)  AS user_or_role,
+        RTRIM(s.FSSY)    AS product_code,
+        s.FSA            AS allow_add,
+        s.FSCHNG         AS allow_change,
+        s.FSDLT          AS allow_delete,
+        s.FSIOK          AS allow_inquiry,
+        s.FSRUN          AS allow_run
     FROM {schema}.F00950 s
-    WHERE s.WSAPID IS NOT NULL
-      AND RTRIM(s.WSAPID) != ''
-      AND RTRIM(COALESCE(s.WSUSER, '')) NOT IN ('', '*PUBLIC', 'EVERYONE')
+    WHERE s.FSOBNM IS NOT NULL
+      AND RTRIM(s.FSOBNM) != ''
+      AND RTRIM(COALESCE(s.FSUSER, '')) NOT IN ('', '*PUBLIC', 'EVERYONE')
 """
 
 
@@ -206,8 +240,10 @@ def load_from_db(config: dict) -> dict:
         "users":      _apply_schema(_SQL_USERS, schema),
         "roles":      _apply_schema(_SQL_ROLES, schema),
         "user_roles": _apply_schema(_SQL_USER_ROLES, schema),
-        "programs":   _apply_schema(_SQL_PROGRAMS, schema),
-        "security":   _apply_schema(_SQL_SECURITY, schema),
+        "programs":        _apply_schema(_SQL_PROGRAMS, schema),
+        "user_security":   _apply_schema(_SQL_USER_SECURITY, schema),
+        "role_hierarchy":  _apply_schema(_SQL_ROLE_HIERARCHY, schema),
+        "security":        _apply_schema(_SQL_SECURITY, schema),
     }
 
     data = {}
