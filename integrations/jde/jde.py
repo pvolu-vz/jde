@@ -73,19 +73,10 @@ JDE_PERMISSIONS: Dict[str, List[OAAPermission]] = {
 
 _SQL_USERS = """
     SELECT
-        RTRIM(u.GNUSER)                                        AS user_id,
-        RTRIM(COALESCE(a.ABALPH, u.GNDSP, u.GNUSER))         AS display_name,
-        CAST(u.GNEADD AS VARCHAR(20))                         AS address_book_number,
-        RTRIM(u.GNSTTS)                                       AS status,
-        RTRIM(w.WAEMAL)                                       AS email
+        RTRIM(u.GNUSER)                      AS user_id,
+        RTRIM(COALESCE(u.GNDSP, u.GNUSER))  AS display_name,
+        RTRIM(u.GNSTTS)                      AS status
     FROM {schema}.F0092 u
-    LEFT JOIN {schema}.F0101 a  ON u.GNEADD = a.ABAN8
-    LEFT JOIN (
-        SELECT WAAB8, WAEMAL,
-               ROW_NUMBER() OVER (PARTITION BY WAAB8 ORDER BY WAIDLN) AS rn
-        FROM {schema}.F01151
-        WHERE WAEMAL IS NOT NULL AND RTRIM(WAEMAL) != ''
-    ) w ON u.GNEADD = w.WAAB8 AND w.rn = 1
     WHERE RTRIM(u.GNUSER) NOT IN ('', 'JDE')
 """
 
