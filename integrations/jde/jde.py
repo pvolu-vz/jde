@@ -78,12 +78,12 @@ _SQL_USERS = """
         CAST(u.GNEADD AS VARCHAR(20))                         AS address_book_number,
         RTRIM(u.GNSTTS)                                       AS status,
         RTRIM(w.WAEMAL)                                       AS email
-    FROM {{schema}}.F0092 u
-    LEFT JOIN {{schema}}.F0101 a  ON u.GNEADD = a.ABAN8
+    FROM {schema}.F0092 u
+    LEFT JOIN {schema}.F0101 a  ON u.GNEADD = a.ABAN8
     LEFT JOIN (
         SELECT WAAB8, WAEMAL,
                ROW_NUMBER() OVER (PARTITION BY WAAB8 ORDER BY WAIDLN) AS rn
-        FROM {{schema}}.F01151
+        FROM {schema}.F01151
         WHERE WAEMAL IS NOT NULL AND RTRIM(WAEMAL) != ''
     ) w ON u.GNEADD = w.WAAB8 AND w.rn = 1
     WHERE RTRIM(u.GNUSER) NOT IN ('', 'JDE')
@@ -93,7 +93,7 @@ _SQL_ROLES = """
     SELECT DISTINCT
         RTRIM(r.WKROLE)  AS role_id,
         RTRIM(r.WKRTYPE) AS role_type
-    FROM {{schema}}.F00926 r
+    FROM {schema}.F00926 r
     WHERE r.WKROLE IS NOT NULL
       AND RTRIM(r.WKROLE) NOT IN ('', 'EVERYONE')
 """
@@ -102,7 +102,7 @@ _SQL_USER_ROLES = """
     SELECT
         RTRIM(r.WKUSER) AS user_id,
         RTRIM(r.WKROLE) AS role_id
-    FROM {{schema}}.F00926 r
+    FROM {schema}.F00926 r
     WHERE r.WKUSER IS NOT NULL AND r.WKROLE IS NOT NULL
       AND RTRIM(r.WKUSER) != '' AND RTRIM(r.WKROLE) != ''
 """
@@ -113,7 +113,7 @@ _SQL_PROGRAMS = """
         RTRIM(o.SIDEMD)  AS description,
         RTRIM(o.SIOTP)   AS object_type,
         RTRIM(o.SISYS)   AS product_code
-    FROM {{schema}}.F9860 o
+    FROM {schema}.F9860 o
     WHERE o.SIOTP IN ('APPL', 'UBE')
       AND o.SIOBNM IS NOT NULL
       AND RTRIM(o.SIOBNM) != ''
@@ -130,7 +130,7 @@ _SQL_SECURITY = """
         s.WSRQR          AS allow_inquiry,
         s.WSRPT          AS allow_run,
         s.WSNOACC        AS no_access
-    FROM {{schema}}.F00950 s
+    FROM {schema}.F00950 s
     WHERE s.WSAPID IS NOT NULL
       AND RTRIM(s.WSAPID) != ''
       AND RTRIM(COALESCE(s.WSUSER, '')) NOT IN ('', '*PUBLIC', 'EVERYONE')
