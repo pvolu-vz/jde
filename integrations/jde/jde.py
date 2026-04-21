@@ -73,7 +73,6 @@ JDE_PERMISSIONS: Dict[str, List[OAAPermission]] = {
 
 _SQL_USERS = """
     SELECT
-        RTRIM(u.GNDSP)   AS display_name,
         RTRIM(u.GNSTTS)  AS status
     FROM {schema}.F0092 u
 """
