@@ -79,7 +79,7 @@ _SQL_USERS = """
         a.ABAN8           AS address_book_number,
         RTRIM(w.EAEMAL)   AS email
     FROM {schema}.F0092L u
-    LEFT JOIN {schema}.F0101 a ON RTRIM(u.ULUSER) = RTRIM(a.ABALKY)
+    LEFT JOIN {schema}.F0101 a ON RTRIM(u.ULUSER) COLLATE DATABASE_DEFAULT = RTRIM(a.ABALKY) COLLATE DATABASE_DEFAULT
     LEFT JOIN (
         SELECT EAAN8, EAEMAL,
                ROW_NUMBER() OVER (PARTITION BY EAAN8 ORDER BY EAIDLN) AS rn
