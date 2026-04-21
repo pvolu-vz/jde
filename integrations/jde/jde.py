@@ -331,7 +331,7 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     user_ids: set = set()
     for row in data.get("users", []):
         uid = str(row.get("user_id", "")).strip()
-        if not uid:
+        if not uid or uid in user_ids:
             continue
         email   = str(row.get("email", "")).strip()
         status  = str(row.get("status", "A")).strip().upper()
@@ -351,7 +351,7 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     role_ids: set = set()
     for row in data.get("roles", []):
         rid = str(row.get("role_id", "")).strip()
-        if not rid:
+        if not rid or rid in role_ids:
             continue
         role = app.add_local_role(name=rid)
         rtype = str(row.get("role_type", "")).strip()
@@ -385,7 +385,7 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     program_ids: set = set()
     for row in data.get("programs", []):
         pid   = str(row.get("program_id", "")).strip()
-        if not pid:
+        if not pid or pid in program_ids:
             continue
         desc  = str(row.get("description", "")).strip() or pid
         otype = str(row.get("object_type", "")).strip()
