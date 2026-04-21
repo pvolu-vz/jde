@@ -1,0 +1,284 @@
+{
+  "custom_property_definition": {
+    "applications": [
+      {
+        "application_type": "Oracle JDE",
+        "local_user_properties": {
+          "jde_status": "STRING",
+          "address_book_number": "STRING"
+        },
+        "local_role_properties": {
+          "role_type": "STRING"
+        },
+        "resources": [
+          {
+            "resource_type": "Program",
+            "properties": {
+              "object_type": "STRING",
+              "product_code": "STRING"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "applications": [
+    {
+      "name": "Oracle JDE EnterpriseOne",
+      "application_type": "Oracle JDE",
+      "description": null,
+      "local_users": [
+        {
+          "name": "ARAPPA",
+          "identities": [
+            "anthony.rappa@westrock.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A"
+          }
+        },
+        {
+          "name": "ARAY",
+          "identities": [
+            "anthony.ray@westrock.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A"
+          }
+        },
+        {
+          "name": "AREITINGER",
+          "identities": [
+            "anthony.reitinger@westrock.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A"
+          }
+        },
+        {
+          "name": "ARICE",
+          "identities": [
+            "anthony.rice@westrock.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A"
+          }
+        },
+        {
+          "name": "AROBTISON",
+          "identities": [
+            "anthony.robtison@westrock.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A"
+          }
+        },
+        {
+          "name": "AROMO1",
+          "identities": [
+            "anthony.romo@westrock.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A"
+          }
+        },
+        {
+          "name": "AROSSI1",
+          "identities": [
+            "anthony.rossi@westrock.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A"
+          }
+        },
+        {
+          "name": "AROULET",
+          "identities": [
+            "anthony.roulette@westrock.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A"
+          }
+        },
+        {
+          "name": "AROYE",
+          "identities": [
+            "anthony.roye@westrock.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A"
+          }
+        },
+        {
+          "name": "ARUIZ",
+          "identities": [
+            "anthony.ruiz@westrock.com"
+          ],
+          "is_active": true,
+          "custom_properties": {
+            "jde_status": "A"
+          }
+        }
+      ],
+      "local_groups": [],
+      "local_roles": [
+        {
+          "name": "BU0026"
+        }
+      ],
+      "local_access_creds": [],
+      "tags": [],
+      "custom_properties": {},
+      "resources": [
+        {
+          "name": "P03B0011",
+          "resource_type": "Program",
+          "description": "P03B0011",
+          "custom_properties": {
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P03B08",
+          "resource_type": "Program",
+          "description": "P03B08",
+          "custom_properties": {
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P03B102",
+          "resource_type": "Program",
+          "description": "P03B102",
+          "custom_properties": {
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P03B103",
+          "resource_type": "Program",
+          "description": "P03B103",
+          "custom_properties": {
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P03B11",
+          "resource_type": "Program",
+          "description": "P03B11",
+          "custom_properties": {
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P03B114",
+          "resource_type": "Program",
+          "description": "P03B114",
+          "custom_properties": {
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P03B11A",
+          "resource_type": "Program",
+          "description": "P03B11A",
+          "custom_properties": {
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P03B11SI",
+          "resource_type": "Program",
+          "description": "P03B11SI",
+          "custom_properties": {
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P03B11Z1",
+          "resource_type": "Program",
+          "description": "P03B11Z1",
+          "custom_properties": {
+            "product_code": "03B"
+          }
+        },
+        {
+          "name": "P03B120",
+          "resource_type": "Program",
+          "description": "P03B120",
+          "custom_properties": {
+            "product_code": "03B"
+          }
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    {
+      "name": "view",
+      "permission_type": [
+        "DataRead"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    },
+    {
+      "name": "add",
+      "permission_type": [
+        "DataRead",
+        "DataWrite"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    },
+    {
+      "name": "change",
+      "permission_type": [
+        "DataRead",
+        "DataWrite"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    },
+    {
+      "name": "delete",
+      "permission_type": [
+        "DataRead",
+        "DataWrite",
+        "DataDelete"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    },
+    {
+      "name": "run",
+      "permission_type": [
+        "DataRead"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    },
+    {
+      "name": "full_access",
+      "permission_type": [
+        "DataRead",
+        "DataWrite",
+        "DataDelete",
+        "MetadataRead",
+        "MetadataWrite"
+      ],
+      "apply_to_sub_resources": false,
+      "resource_types": []
+    }
+  ],
+  "identity_to_permissions": []
+}

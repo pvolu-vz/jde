@@ -4,7 +4,7 @@ JD Edwards EnterpriseOne to Veza OAA Integration Script
 Collects identity and permission data from JDE via MS SQL Server and pushes to Veza.
 
 Entity model: Local Users → Local Roles → Program Resources (with Add/Change/Delete/View/Run)
-Data sources: F0092, F00926, F9860 (optional), F00950, F0101, F01151
+Data sources: F0092L, F95921, F00950, F0101, F01151, F98OWSEC
 """
 
 import argparse
@@ -74,51 +74,31 @@ JDE_PERMISSIONS: Dict[str, List[OAAPermission]] = {
 _SQL_USERS = """
     SELECT
         RTRIM(u.ULUSER)   AS user_id,
-        RTRIM(u.ULLUSER)  AS display_name,
+        RTRIM(u.ULLUSER)  AS email,
         RTRIM(a.ABALPH)   AS full_name,
-        a.ABAN8           AS address_book_number,
-        RTRIM(w.EAEMAL)   AS email
+        a.ABAN8           AS address_book_number
     FROM {schema}.F0092L u
     LEFT JOIN {schema}.F0101 a ON RTRIM(u.ULUSER) COLLATE DATABASE_DEFAULT = RTRIM(a.ABALKY) COLLATE DATABASE_DEFAULT
-    LEFT JOIN (
-        SELECT EAAN8, EAEMAL,
-               ROW_NUMBER() OVER (PARTITION BY EAAN8 ORDER BY EAIDLN) AS rn
-        FROM {schema}.F01151
-        WHERE EAEMAL IS NOT NULL AND RTRIM(EAEMAL) != ''
-    ) w ON a.ABAN8 = w.EAAN8 AND w.rn = 1
 """
 
 _SQL_ROLES = """
     SELECT DISTINCT
-        RTRIM(r.AUWUID)      AS role_id,
-        RTRIM(r.AUROLEDESC)  AS role_desc
-    FROM {schema}.F00926 r
-    WHERE r.AUWUID IS NOT NULL
-      AND RTRIM(r.AUWUID) NOT IN ('', 'EVERYONE')
+        RTRIM(r.RLFRROLE) AS role_id
+    FROM {schema}.F95921 r
+    WHERE r.RLFRROLE IS NOT NULL
+      AND RTRIM(r.RLFRROLE) != ''
 """
 
 _SQL_USER_ROLES = """
     SELECT
-        RTRIM(r.AUUSER) AS user_id,
-        RTRIM(r.AUWUID) AS role_id
-    FROM {schema}.F00926 r
-    WHERE r.AUUSER IS NOT NULL AND r.AUWUID IS NOT NULL
-      AND RTRIM(r.AUUSER) != '' AND RTRIM(r.AUWUID) != ''
+        RTRIM(r.RLTOROLE) AS user_id,
+        RTRIM(r.RLFRROLE) AS role_id
+    FROM {schema}.F95921 r
+    WHERE r.RLFRROLE IS NOT NULL AND r.RLTOROLE IS NOT NULL
+      AND RTRIM(r.RLFRROLE) != '' AND RTRIM(r.RLTOROLE) != ''
 """
 
 _SQL_PROGRAMS = """
-    SELECT
-        RTRIM(o.SIOBNM)  AS program_id,
-        RTRIM(o.SIDEMD)  AS description,
-        RTRIM(o.SIOTP)   AS object_type,
-        RTRIM(o.SISYS)   AS product_code
-    FROM {schema}.F9860 o
-    WHERE o.SIOTP IN ('APPL', 'UBE')
-      AND o.SIOBNM IS NOT NULL
-      AND RTRIM(o.SIOBNM) != ''
-"""
-
-_SQL_PROGRAMS_FALLBACK = """
     SELECT DISTINCT
         RTRIM(s.FSOBNM)  AS program_id,
         ''               AS description,
@@ -141,17 +121,6 @@ _SQL_USER_SECURITY = """
       AND RTRIM(s.SCUSER) != ''
 """
 
-_SQL_ROLE_HIERARCHY = """
-    SELECT
-        RTRIM(r.RLFRROLE)  AS from_role,
-        RTRIM(r.RLTOROLE)  AS to_role,
-        RTRIM(r.RLROLETYP) AS role_type,
-        RTRIM(r.RLSYSROLE) AS system_role,
-        RTRIM(r.RLDEFROLE) AS default_role
-    FROM {schema}.F95921 r
-    WHERE r.RLFRROLE IS NOT NULL AND r.RLTOROLE IS NOT NULL
-      AND RTRIM(r.RLFRROLE) != '' AND RTRIM(r.RLTOROLE) != ''
-"""
 
 _SQL_SECURITY = """
     SELECT
@@ -248,13 +217,12 @@ def load_from_db(config: dict) -> dict:
         sys.exit(1)
 
     queries = {
-        "users":      _apply_schema(_SQL_USERS, schema),
-        "roles":      _apply_schema(_SQL_ROLES, schema),
-        "user_roles": _apply_schema(_SQL_USER_ROLES, schema),
-        "programs":        _apply_schema(_SQL_PROGRAMS, schema),
-        "user_security":   _apply_schema(_SQL_USER_SECURITY, schema),
-        "role_hierarchy":  _apply_schema(_SQL_ROLE_HIERARCHY, schema),
-        "security":        _apply_schema(_SQL_SECURITY, schema),
+        "users":         _apply_schema(_SQL_USERS, schema),
+        "roles":         _apply_schema(_SQL_ROLES, schema),
+        "user_roles":    _apply_schema(_SQL_USER_ROLES, schema),
+        "programs":      _apply_schema(_SQL_PROGRAMS, schema),
+        "user_security": _apply_schema(_SQL_USER_SECURITY, schema),
+        "security":      _apply_schema(_SQL_SECURITY, schema),
     }
 
     data = {}
@@ -263,29 +231,10 @@ def load_from_db(config: dict) -> dict:
         _stage("Running queries")
         for key, query in queries.items():
             log.info("Fetching %s …", key)
-            try:
-                cursor.execute(query)
-            except pyodbc.ProgrammingError as exc:
-                if key == "programs" and "42S02" in str(exc):
-                    log.warning("F9860 (Object Librarian) not found — deriving programs from F00950 security records")
-                    cursor.execute(_apply_schema(_SQL_PROGRAMS_FALLBACK, schema))
-                else:
-                    raise
+            cursor.execute(query)
             columns = [col[0] for col in cursor.description]
             data[key] = [dict(zip(columns, row)) for row in cursor.fetchall()]
             log.info("  → %d %s records", len(data[key]), key)
-
-        # F9860 only covers APPL/UBE; F00950 has security for all object types.
-        # Supplement the program list so no security record is skipped due to a
-        # missing program_id.
-        cursor.execute(_apply_schema(_SQL_PROGRAMS_FALLBACK, schema))
-        cols = [col[0] for col in cursor.description]
-        f00950_programs = [dict(zip(cols, row)) for row in cursor.fetchall()]
-        existing_ids = {r["program_id"] for r in data.get("programs", [])}
-        extra = [r for r in f00950_programs if r["program_id"] not in existing_ids]
-        if extra:
-            data["programs"].extend(extra)
-            log.info("  → %d additional programs from F00950 (not in F9860)", len(extra))
     finally:
         conn.close()
 
@@ -295,24 +244,73 @@ def load_from_db(config: dict) -> dict:
 # ── Data Loading — CSV (dry-run / testing) ────────────────────────────────────
 
 def load_from_csv(data_dir: str) -> dict:
-    """Load data from CSV files exported from JDE (used for dry-run testing)."""
-    expected = {
-        "users":      "users.csv",
-        "roles":      "roles.csv",
-        "user_roles": "user_roles.csv",
-        "programs":   "programs.csv",
-        "security":   "security.csv",
-    }
-    data = {}
-    for key, filename in expected.items():
-        filepath = os.path.join(data_dir, filename)
-        if not os.path.exists(filepath):
-            log.warning("Sample file not found: %s — %s will be empty", filepath, key)
-            data[key] = []
-            continue
-        with open(filepath, newline="", encoding="utf-8") as fh:
-            data[key] = [dict(row) for row in csv.DictReader(fh)]
-        log.info("Loaded %d %s records from %s", len(data[key]), key, filename)
+    """Load data from JDE CSV exports (used for dry-run testing).
+
+    Reads files by their JDE table names and derives the five data keys
+    the payload builder expects.
+    """
+    data: dict = {k: [] for k in ["users", "roles", "user_roles", "programs", "security"]}
+
+    f0092l = os.path.join(data_dir, "F0092L.csv")
+    if os.path.exists(f0092l):
+        with open(f0092l, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                uid   = row.get("ULUSER", "").strip()
+                email = row.get("ULLUSER", "").strip()
+                if uid:
+                    data["users"].append({"user_id": uid, "email": email, "display_name": email})
+        log.info("Loaded %d users from F0092L.csv", len(data["users"]))
+    else:
+        log.warning("F0092L.csv not found in %s — users will be empty", data_dir)
+
+    f95921 = os.path.join(data_dir, "F95921.csv")
+    if os.path.exists(f95921):
+        role_ids_seen: set = set()
+        with open(f95921, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                from_role = row.get("RLFRROLE", "").strip()
+                to_user   = row.get("RLTOROLE", "").strip()
+                if from_role and from_role not in role_ids_seen:
+                    data["roles"].append({"role_id": from_role})
+                    role_ids_seen.add(from_role)
+                if from_role and to_user:
+                    data["user_roles"].append({"user_id": to_user, "role_id": from_role})
+        log.info("Loaded %d roles and %d user-role assignments from F95921.csv",
+                 len(data["roles"]), len(data["user_roles"]))
+    else:
+        log.warning("F95921.csv not found in %s — roles will be empty", data_dir)
+
+    f00950 = os.path.join(data_dir, "F00950.csv")
+    if os.path.exists(f00950):
+        program_ids_seen: set = set()
+        with open(f00950, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                pid          = row.get("FSOBNM", "").strip()
+                user_or_role = row.get("FSUSER", "").strip()
+                if pid and pid not in program_ids_seen:
+                    data["programs"].append({
+                        "program_id":   pid,
+                        "description":  "",
+                        "object_type":  "",
+                        "product_code": row.get("FSSY", "").strip(),
+                    })
+                    program_ids_seen.add(pid)
+                if pid and user_or_role:
+                    data["security"].append({
+                        "program_id":   pid,
+                        "user_or_role": user_or_role,
+                        "product_code": row.get("FSSY", "").strip(),
+                        "allow_add":    row.get("FSA", ""),
+                        "allow_change": row.get("FSCHNG", ""),
+                        "allow_delete": row.get("FSDLT", ""),
+                        "allow_inquiry":row.get("FSIOK", ""),
+                        "allow_run":    row.get("FSRUN", ""),
+                    })
+        log.info("Loaded %d programs and %d security records from F00950.csv",
+                 len(data["programs"]), len(data["security"]))
+    else:
+        log.warning("F00950.csv not found in %s — programs and security will be empty", data_dir)
+
     return data
 
 
