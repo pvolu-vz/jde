@@ -148,6 +148,11 @@ def _apply_schema(sql_template: str, schema: str) -> str:
     return sql_template.replace("{schema}", schema)
 
 
+def _stage(label: str) -> None:
+    ts = datetime.now().strftime("%H:%M:%S")
+    print(f"[JDE OAA] [{ts}] {label}")
+
+
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 def load_config(args) -> dict:
@@ -201,6 +206,7 @@ def load_from_db(config: dict) -> dict:
         "TrustServerCertificate=yes;"
     )
 
+    _stage("Connecting to SQL")
     log.info("Connecting to JDE database at %s/%s (schema: %s)", server, database, schema)
     try:
         conn = pyodbc.connect(conn_str, timeout=30)
@@ -219,6 +225,7 @@ def load_from_db(config: dict) -> dict:
     data = {}
     try:
         cursor = conn.cursor()
+        _stage("Running queries")
         for key, query in queries.items():
             log.info("Fetching %s …", key)
             cursor.execute(query)
@@ -444,13 +451,15 @@ def push_to_veza(
 
     if dry_run:
         log.info("[DRY RUN] Payload built successfully — push to Veza skipped")
-        print("[JDE OAA] Dry-run complete. Payload built successfully.")
+        _stage("Result: SUCCESS (dry-run complete)")
         return
 
     if not veza_url or not veza_api_key:
         log.error("VEZA_URL and VEZA_API_KEY are required for a live push")
+        _stage("Result: FAILURE — missing VEZA_URL or VEZA_API_KEY")
         sys.exit(1)
 
+    _stage("Pushing to Veza")
     veza_con = OAAClient(url=veza_url, token=veza_api_key)
     try:
         log.info("Pushing payload to Veza at %s", veza_url)
@@ -464,12 +473,13 @@ def push_to_veza(
             for w in response["warnings"]:
                 log.warning("Veza warning: %s", w)
         log.info("Successfully pushed to Veza")
-        print("[JDE OAA] Successfully pushed to Veza.")
+        _stage("Result: SUCCESS — payload pushed to Veza")
     except OAAClientError as exc:
         log.error("Veza push failed: %s — %s (HTTP %s)", exc.error, exc.message, exc.status_code)
         if hasattr(exc, "details"):
             for detail in exc.details:
                 log.error("  Detail: %s", detail)
+        _stage(f"Result: FAILURE — {exc.error}")
         sys.exit(1)
 
 
@@ -525,6 +535,7 @@ def main():
     print(f"  Mode:        {'DRY RUN' if args.dry_run else 'LIVE PUSH'}")
     print("=" * 60)
 
+    _stage("Started")
     config = load_config(args)
 
     if args.data_dir:
@@ -532,11 +543,13 @@ def main():
             log.error("--data-dir %s does not exist", args.data_dir)
             sys.exit(1)
         log.info("Loading data from CSV files in %s", args.data_dir)
+        _stage("Loading CSV data")
         data = load_from_csv(args.data_dir)
     else:
         log.info("Loading data from JDE MS SQL Server database")
         data = load_from_db(config)
 
+    _stage("Building OAA payload")
     app = build_oaa_payload(data, args.provider_name, args.datasource_name)
 
     push_to_veza(
