@@ -4,7 +4,7 @@ JD Edwards EnterpriseOne to Veza OAA Integration Script
 Collects identity and permission data from JDE via MS SQL Server and pushes to Veza.
 
 Entity model: Local Users → Local Roles → Program Resources (with Add/Change/Delete/View/Run)
-Data sources: F0092, F00926, F9860, F00950, F0101, F01151
+Data sources: F0092, F00926, F9860 (optional), F00950, F0101, F01151
 """
 
 import argparse
@@ -116,6 +116,17 @@ _SQL_PROGRAMS = """
     WHERE o.SIOTP IN ('APPL', 'UBE')
       AND o.SIOBNM IS NOT NULL
       AND RTRIM(o.SIOBNM) != ''
+"""
+
+_SQL_PROGRAMS_FALLBACK = """
+    SELECT DISTINCT
+        RTRIM(s.FSOBNM)  AS program_id,
+        ''               AS description,
+        ''               AS object_type,
+        RTRIM(s.FSSY)    AS product_code
+    FROM {schema}.F00950 s
+    WHERE s.FSOBNM IS NOT NULL
+      AND RTRIM(s.FSOBNM) != ''
 """
 
 _SQL_USER_SECURITY = """
@@ -252,7 +263,14 @@ def load_from_db(config: dict) -> dict:
         _stage("Running queries")
         for key, query in queries.items():
             log.info("Fetching %s …", key)
-            cursor.execute(query)
+            try:
+                cursor.execute(query)
+            except pyodbc.ProgrammingError as exc:
+                if key == "programs" and "42S02" in str(exc):
+                    log.warning("F9860 (Object Librarian) not found — deriving programs from F00950 security records")
+                    cursor.execute(_apply_schema(_SQL_PROGRAMS_FALLBACK, schema))
+                else:
+                    raise
             columns = [col[0] for col in cursor.description]
             data[key] = [dict(zip(columns, row)) for row in cursor.fetchall()]
             log.info("  → %d %s records", len(data[key]), key)
