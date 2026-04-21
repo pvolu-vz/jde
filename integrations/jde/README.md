@@ -136,6 +136,9 @@ Validation Checks:
   6) API Endpoint Accessibility (Veza)
   7) Deployment Structure
 
+SQL Validation:
+  12) SQL Query Validation (TOP 2 rows per JDE table)
+
 Comprehensive Tests:
   8) Run ALL Checks (recommended)
 
@@ -158,6 +161,7 @@ Utilities:
 | **5 — API Authentication** | Live `pyodbc` connection with `SELECT @@VERSION`; Veza `GET /api/v1/providers` with Bearer token |
 | **6 — API Endpoint Access** | Veza query API `POST /api/v1/assessments/query_spec:nodes` |
 | **7 — Deployment Structure** | `jde.py` exists and is executable, `logs/` writability, service account |
+| **12 — SQL Query Validation** | Executes `SELECT TOP 2` against all six JDE tables (`F0092`, `F00926`, `F9860`, `F00950`, `F0101`, `F01151`) and prints sample rows to confirm schema, column names, and SELECT access |
 
 ### Example output (successful run)
 
