@@ -340,7 +340,7 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     # ── Local Users ──────────────────────────────────────────────────────────
     user_ids: set = set()
     for row in data.get("users", []):
-        uid = str(row.get("user_id", "")).strip()
+        uid = str(row.get("user_id", "")).strip().upper()
         if not uid or uid in user_ids:
             continue
         email   = str(row.get("email", "")).strip()
@@ -360,7 +360,7 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     # ── Local Roles ──────────────────────────────────────────────────────────
     role_ids: set = set()
     for row in data.get("roles", []):
-        rid = str(row.get("role_id", "")).strip()
+        rid = str(row.get("role_id", "")).strip().upper()
         if not rid or rid in role_ids:
             continue
         role = app.add_local_role(name=rid)
@@ -374,8 +374,8 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     # ── User → Role assignments ───────────────────────────────────────────────
     assignments = 0
     for row in data.get("user_roles", []):
-        uid = str(row.get("user_id", "")).strip()
-        rid = str(row.get("role_id", "")).strip()
+        uid = str(row.get("user_id", "")).strip().upper()
+        rid = str(row.get("role_id", "")).strip().upper()
         if not uid or not rid:
             continue
         if uid not in user_ids:
@@ -394,7 +394,7 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     # ── Program Resources ─────────────────────────────────────────────────────
     program_ids: set = set()
     for row in data.get("programs", []):
-        pid   = str(row.get("program_id", "")).strip()
+        pid   = str(row.get("program_id", "")).strip().upper()
         if not pid or pid in program_ids:
             continue
         desc  = str(row.get("description", "")).strip() or pid
@@ -413,8 +413,8 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     # ── Security → Permissions ────────────────────────────────────────────────
     perms_added = skipped = 0
     for row in data.get("security", []):
-        pid     = str(row.get("program_id", "")).strip()
-        subject = str(row.get("user_or_role", "")).strip()
+        pid     = str(row.get("program_id", "")).strip().upper()
+        subject = str(row.get("user_or_role", "")).strip().upper()
 
         if not pid or not subject:
             continue
