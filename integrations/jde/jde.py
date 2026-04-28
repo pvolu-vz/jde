@@ -465,8 +465,7 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
 
         for perm in granted:
             if is_role:
-                # oaaclient 1.1.x: role permissions are application-scoped
-                app.local_roles[subject].add_permissions([perm])
+                app.local_roles[subject].add_permission(perm, resources=[resource])
             else:
                 app.local_users[subject].add_permission(perm, resources=[resource])
         perms_added += 1
