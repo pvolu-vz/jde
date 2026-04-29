@@ -371,26 +371,6 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
 
     log.info("Roles added: %d", len(role_ids))
 
-    # ── User → Role assignments ───────────────────────────────────────────────
-    assignments = 0
-    for row in data.get("user_roles", []):
-        uid = str(row.get("user_id", "")).strip().upper()
-        rid = str(row.get("role_id", "")).strip().upper()
-        if not uid or not rid:
-            continue
-        if uid not in user_ids:
-            log.debug("User-role skip: user %s not in users data", uid)
-            continue
-        if rid not in role_ids:
-            # Role appeared in user_roles but not in roles table — auto-create
-            app.add_local_role(name=rid)
-            role_ids.add(rid)
-            log.debug("Auto-created missing role: %s", rid)
-        app.local_users[uid].add_role(role=rid, apply_to_application=True)
-        assignments += 1
-
-    log.info("User-role assignments: %d", assignments)
-
     # ── Program Resources ─────────────────────────────────────────────────────
     program_ids: set = set()
     for row in data.get("programs", []):
@@ -411,7 +391,12 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     log.info("Program resources added: %d", len(program_ids))
 
     # ── Security → Permissions ────────────────────────────────────────────────
+    # role_resources: role_id -> {pid: resource} — used to scope role assignments
+    # role_perms:     role_id -> set of perm strings — applied via add_permissions()
+    role_resources: dict = {}
+    role_perms: dict = {}
     perms_added = skipped = 0
+
     for row in data.get("security", []):
         pid     = str(row.get("program_id", "")).strip().upper()
         subject = str(row.get("user_or_role", "")).strip().upper()
@@ -463,14 +448,45 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
         if resource is None:
             continue
 
-        for perm in granted:
-            if is_role:
-                app.local_roles[subject].add_permission(perm, resources=[resource])
-            else:
+        if is_role:
+            role_resources.setdefault(subject, {})[pid] = resource
+            role_perms.setdefault(subject, set()).update(granted)
+        else:
+            for perm in granted:
                 app.local_users[subject].add_permission(perm, resources=[resource])
         perms_added += 1
 
+    # Apply accumulated role-level permissions (defines what each role can do)
+    for rid, perms in role_perms.items():
+        app.local_roles[rid].add_permissions(list(perms))
+
     log.info("Security records processed: %d  |  skipped: %d", perms_added, skipped)
+
+    # ── User → Role assignments ───────────────────────────────────────────────
+    # Scope each role assignment to the programs that role grants access to,
+    # so Veza renders: User → Role → Program → Application
+    assignments = 0
+    for row in data.get("user_roles", []):
+        uid = str(row.get("user_id", "")).strip().upper()
+        rid = str(row.get("role_id", "")).strip().upper()
+        if not uid or not rid:
+            continue
+        if uid not in user_ids:
+            log.debug("User-role skip: user %s not in users data", uid)
+            continue
+        if rid not in role_ids:
+            # Role appeared in user_roles but not in roles table — auto-create
+            app.add_local_role(name=rid)
+            role_ids.add(rid)
+            log.debug("Auto-created missing role: %s", rid)
+        resources_for_role = list(role_resources.get(rid, {}).values())
+        if resources_for_role:
+            app.local_users[uid].add_role(role=rid, resources=resources_for_role)
+        else:
+            app.local_users[uid].add_role(role=rid, apply_to_application=True)
+        assignments += 1
+
+    log.info("User-role assignments: %d", assignments)
     log.info(
         "Payload summary — Users: %d  Roles: %d  Programs: %d  SecurityRecords: %d",
         len(user_ids),
