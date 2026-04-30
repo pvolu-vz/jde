@@ -14,6 +14,7 @@
         "local_role_properties": {
           "role_type": "STRING",
           "role_category": "STRING",
+          "role_description": "STRING",
           "effective_date": "STRING",
           "expiry_date": "STRING"
         },
@@ -22,7 +23,9 @@
             "resource_type": "Program",
             "properties": {
               "object_type": "STRING",
-              "product_code": "STRING"
+              "product_code": "STRING",
+              "security_type": "STRING",
+              "version": "STRING"
             }
           }
         ]
@@ -164,7 +167,8 @@
           "resource_type": "Program",
           "description": "P03B0011",
           "custom_properties": {
-            "product_code": "03B"
+            "product_code": "03B",
+            "security_type": "Action Code"
           }
         },
         {
@@ -172,7 +176,8 @@
           "resource_type": "Program",
           "description": "P03B08",
           "custom_properties": {
-            "product_code": "03B"
+            "product_code": "03B",
+            "security_type": "Action Code"
           }
         },
         {
@@ -180,7 +185,8 @@
           "resource_type": "Program",
           "description": "P03B102",
           "custom_properties": {
-            "product_code": "03B"
+            "product_code": "03B",
+            "security_type": "Action Code"
           }
         },
         {
@@ -188,7 +194,8 @@
           "resource_type": "Program",
           "description": "P03B103",
           "custom_properties": {
-            "product_code": "03B"
+            "product_code": "03B",
+            "security_type": "Action Code"
           }
         },
         {
@@ -196,7 +203,8 @@
           "resource_type": "Program",
           "description": "P03B11",
           "custom_properties": {
-            "product_code": "03B"
+            "product_code": "03B",
+            "security_type": "Action Code"
           }
         },
         {
@@ -204,7 +212,8 @@
           "resource_type": "Program",
           "description": "P03B114",
           "custom_properties": {
-            "product_code": "03B"
+            "product_code": "03B",
+            "security_type": "Action Code"
           }
         },
         {
@@ -212,7 +221,8 @@
           "resource_type": "Program",
           "description": "P03B11A",
           "custom_properties": {
-            "product_code": "03B"
+            "product_code": "03B",
+            "security_type": "Action Code"
           }
         },
         {
@@ -220,7 +230,8 @@
           "resource_type": "Program",
           "description": "P03B11SI",
           "custom_properties": {
-            "product_code": "03B"
+            "product_code": "03B",
+            "security_type": "Action Code"
           }
         },
         {
@@ -228,7 +239,8 @@
           "resource_type": "Program",
           "description": "P03B11Z1",
           "custom_properties": {
-            "product_code": "03B"
+            "product_code": "03B",
+            "security_type": "Action Code"
           }
         },
         {
@@ -236,7 +248,8 @@
           "resource_type": "Program",
           "description": "P03B120",
           "custom_properties": {
-            "product_code": "03B"
+            "product_code": "03B",
+            "security_type": "Action Code"
           }
         }
       ]

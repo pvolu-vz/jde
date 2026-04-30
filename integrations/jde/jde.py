@@ -108,10 +108,10 @@ _SQL_USER_ROLES = """
 
 _SQL_PROGRAMS = """
     SELECT DISTINCT
-        RTRIM(s.FSOBNM)  AS program_id,
-        ''               AS description,
-        ''               AS object_type,
-        RTRIM(s.FSSY)    AS product_code
+        RTRIM(s.FSOBNM)                AS program_id,
+        RTRIM(COALESCE(s.FSFRDV, '')) AS version,
+        ''                             AS object_type,
+        RTRIM(s.FSSY)                  AS product_code
     FROM {schema}.F00950 s
     WHERE s.FSOBNM IS NOT NULL
       AND RTRIM(s.FSOBNM) != ''
@@ -140,6 +140,16 @@ _SQL_USER_STATUS = """
       AND RTRIM(u.AUUSER) != ''
 """
 
+_SQL_ROLE_DESCRIPTIONS = """
+    SELECT DISTINCT
+        RTRIM(r.AUUSER)       AS role_id,
+        RTRIM(r.AUROLEDESC)   AS role_description
+    FROM {schema}.F00926 r
+    WHERE r.AUUSER IS NOT NULL
+      AND RTRIM(r.AUUSER) != ''
+      AND RTRIM(COALESCE(r.AUROLEDESC, '')) != ''
+"""
+
 _SQL_EMAIL = """
     SELECT
         RTRIM(e.EAUSER) AS user_id,
@@ -163,14 +173,16 @@ _SQL_LAST_ACCESS = """
 
 _SQL_SECURITY = """
     SELECT
-        RTRIM(s.FSOBNM)  AS program_id,
-        RTRIM(s.FSUSER)  AS user_or_role,
-        RTRIM(s.FSSY)    AS product_code,
-        s.FSA            AS allow_add,
-        s.FSCHNG         AS allow_change,
-        s.FSDLT          AS allow_delete,
-        s.FSIOK          AS allow_inquiry,
-        s.FSRUN          AS allow_run
+        RTRIM(s.FSOBNM)                AS program_id,
+        RTRIM(COALESCE(s.FSFRDV, '')) AS version,
+        RTRIM(COALESCE(s.FSSETY, '')) AS security_type,
+        RTRIM(s.FSUSER)                AS user_or_role,
+        RTRIM(s.FSSY)                  AS product_code,
+        s.FSA                          AS allow_add,
+        s.FSCHNG                       AS allow_change,
+        s.FSDLT                        AS allow_delete,
+        s.FSIOK                        AS allow_inquiry,
+        s.FSRUN                        AS allow_run
     FROM {schema}.F00950 s
     WHERE s.FSOBNM IS NOT NULL
       AND RTRIM(s.FSOBNM) != ''
@@ -256,15 +268,16 @@ def load_from_db(config: dict) -> dict:
         sys.exit(1)
 
     queries = {
-        "users":         _apply_schema(_SQL_USERS, schema),
-        "roles":         _apply_schema(_SQL_ROLES, schema),
-        "user_roles":    _apply_schema(_SQL_USER_ROLES, schema),
-        "programs":      _apply_schema(_SQL_PROGRAMS, schema),
-        "user_security": _apply_schema(_SQL_USER_SECURITY, schema),
-        "security":      _apply_schema(_SQL_SECURITY, schema),
-        "user_status":   _apply_schema(_SQL_USER_STATUS, schema),
-        "emails":        _apply_schema(_SQL_EMAIL, schema),
-        "last_access":   _apply_schema(_SQL_LAST_ACCESS, schema),
+        "users":              _apply_schema(_SQL_USERS, schema),
+        "roles":              _apply_schema(_SQL_ROLES, schema),
+        "user_roles":         _apply_schema(_SQL_USER_ROLES, schema),
+        "programs":           _apply_schema(_SQL_PROGRAMS, schema),
+        "user_security":      _apply_schema(_SQL_USER_SECURITY, schema),
+        "security":           _apply_schema(_SQL_SECURITY, schema),
+        "user_status":        _apply_schema(_SQL_USER_STATUS, schema),
+        "role_descriptions":  _apply_schema(_SQL_ROLE_DESCRIPTIONS, schema),
+        "emails":             _apply_schema(_SQL_EMAIL, schema),
+        "last_access":        _apply_schema(_SQL_LAST_ACCESS, schema),
     }
 
     data = {}
@@ -293,7 +306,7 @@ def load_from_csv(data_dir: str) -> dict:
     """
     data: dict = {k: [] for k in [
         "users", "roles", "user_roles", "programs", "security",
-        "user_status", "emails", "last_access",
+        "user_status", "role_descriptions", "emails", "last_access",
     ]}
 
     f0092l = os.path.join(data_dir, "F0092L.csv")
@@ -332,29 +345,34 @@ def load_from_csv(data_dir: str) -> dict:
 
     f00950 = os.path.join(data_dir, "F00950.csv")
     if os.path.exists(f00950):
-        program_ids_seen: set = set()
+        program_keys_seen: set = set()
         with open(f00950, newline="", encoding="utf-8") as fh:
             for row in csv.DictReader(fh):
                 pid          = row.get("FSOBNM", "").strip()
+                version      = row.get("FSFRDV", "").strip()
                 user_or_role = row.get("FSUSER", "").strip()
-                if pid and pid not in program_ids_seen:
+                rkey         = _resource_key(pid.upper(), version)
+                if pid and rkey not in program_keys_seen:
                     data["programs"].append({
                         "program_id":   pid,
+                        "version":      version,
                         "description":  "",
                         "object_type":  "",
                         "product_code": row.get("FSSY", "").strip(),
                     })
-                    program_ids_seen.add(pid)
+                    program_keys_seen.add(rkey)
                 if pid and user_or_role:
                     data["security"].append({
-                        "program_id":   pid,
-                        "user_or_role": user_or_role,
-                        "product_code": row.get("FSSY", "").strip(),
-                        "allow_add":    row.get("FSA", ""),
-                        "allow_change": row.get("FSCHNG", ""),
-                        "allow_delete": row.get("FSDLT", ""),
-                        "allow_inquiry":row.get("FSIOK", ""),
-                        "allow_run":    row.get("FSRUN", ""),
+                        "program_id":    pid,
+                        "version":       version,
+                        "security_type": row.get("FSSETY", "").strip(),
+                        "user_or_role":  user_or_role,
+                        "product_code":  row.get("FSSY", "").strip(),
+                        "allow_add":     row.get("FSA", ""),
+                        "allow_change":  row.get("FSCHNG", ""),
+                        "allow_delete":  row.get("FSDLT", ""),
+                        "allow_inquiry": row.get("FSIOK", ""),
+                        "allow_run":     row.get("FSRUN", ""),
                     })
         log.info("Loaded %d programs and %d security records from F00950.csv",
                  len(data["programs"]), len(data["security"]))
@@ -365,14 +383,21 @@ def load_from_csv(data_dir: str) -> dict:
     if os.path.exists(f00926):
         with open(f00926, newline="", encoding="utf-8") as fh:
             for row in csv.DictReader(fh):
-                uid = row.get("AUUSER", "").strip()
+                uid  = row.get("AUUSER", "").strip()
+                desc = row.get("AUROLEDESC", "").strip()
                 if uid:
                     data["user_status"].append({
                         "user_id":            uid,
                         "status_flag":        row.get("AUACTINACT", "").strip(),
                         "last_update_julian": row.get("AUUPMJ", ""),
                     })
-        log.info("Loaded %d user-status records from F00926.csv", len(data["user_status"]))
+                    if desc:
+                        data["role_descriptions"].append({
+                            "role_id":          uid,
+                            "role_description": desc,
+                        })
+        log.info("Loaded %d user-status and %d role-description records from F00926.csv",
+                 len(data["user_status"]), len(data["role_descriptions"]))
     else:
         log.warning("F00926.csv not found in %s — user status will default to active", data_dir)
 
@@ -457,6 +482,19 @@ def _role_category(role_id: str) -> str:
     return "Other"
 
 
+_SECURITY_TYPE_LABELS: Dict[str, str] = {
+    "1": "Action Code",
+    "3": "Application/UBE",
+    "6": "Hyper Exit",
+}
+
+
+def _resource_key(program_id: str, version: str) -> str:
+    """Return a compound resource name that embeds the JDE version when present."""
+    v = (version or "").strip()
+    return f"{program_id}::{v}" if v else program_id
+
+
 # ── OAA Payload Builder ───────────────────────────────────────────────────────
 
 def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> CustomApplication:
@@ -476,11 +514,14 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     # Custom properties — roles
     app.property_definitions.define_local_role_property("role_type",            OAAPropertyType.STRING)
     app.property_definitions.define_local_role_property("role_category",        OAAPropertyType.STRING)
+    app.property_definitions.define_local_role_property("role_description",     OAAPropertyType.STRING)
     app.property_definitions.define_local_role_property("effective_date",       OAAPropertyType.STRING)
     app.property_definitions.define_local_role_property("expiry_date",          OAAPropertyType.STRING)
     # Custom properties — resources
-    app.property_definitions.define_resource_property("Program", "object_type", OAAPropertyType.STRING)
-    app.property_definitions.define_resource_property("Program", "product_code", OAAPropertyType.STRING)
+    app.property_definitions.define_resource_property("Program", "object_type",    OAAPropertyType.STRING)
+    app.property_definitions.define_resource_property("Program", "product_code",   OAAPropertyType.STRING)
+    app.property_definitions.define_resource_property("Program", "security_type",  OAAPropertyType.STRING)
+    app.property_definitions.define_resource_property("Program", "version",        OAAPropertyType.STRING)
 
     # Build lookup dicts for enrichment data
     status_by_user: dict = {
@@ -495,6 +536,11 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     last_access_by_user: dict = {
         str(r.get("user_id", "")).strip().upper(): r.get("last_access_julian")
         for r in data.get("last_access", [])
+    }
+    role_desc_by_id: dict = {
+        str(r.get("role_id", "")).strip().upper(): str(r.get("role_description", "")).strip()
+        for r in data.get("role_descriptions", [])
+        if r.get("role_description", "").strip()
     }
 
     # ── Local Users ──────────────────────────────────────────────────────────
@@ -558,6 +604,9 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
         if rtype:
             role.set_property("role_type", rtype)
         role.set_property("role_category", _role_category(rid))
+        rdesc = role_desc_by_id.get(rid, "")
+        if rdesc:
+            role.set_property("role_description", rdesc)
         role_ids.add(rid)
 
     log.info("Roles added: %d", len(role_ids))
@@ -565,42 +614,55 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     # ── Program Resources ─────────────────────────────────────────────────────
     program_ids: set = set()
     for row in data.get("programs", []):
-        pid   = str(row.get("program_id", "")).strip().upper()
-        if not pid or pid in program_ids:
+        pid     = str(row.get("program_id", "")).strip().upper()
+        version = str(row.get("version", "")).strip()
+        rkey    = _resource_key(pid, version)
+        if not pid or rkey in program_ids:
             continue
-        desc  = str(row.get("description", "")).strip() or pid
+        desc  = str(row.get("description", "")).strip() or rkey
         otype = str(row.get("object_type", "")).strip()
         pcode = str(row.get("product_code", "")).strip()
 
-        resource = app.add_resource(name=pid, resource_type="Program", description=desc)
+        resource = app.add_resource(name=rkey, resource_type="Program", description=desc)
         if otype:
             resource.set_property("object_type", otype)
         if pcode:
             resource.set_property("product_code", pcode)
-        program_ids.add(pid)
+        if version:
+            resource.set_property("version", version)
+        program_ids.add(rkey)
 
     log.info("Program resources added: %d", len(program_ids))
 
     # ── Security → Permissions ────────────────────────────────────────────────
-    # role_resources: role_id -> {pid: resource} — used to scope role assignments
-    # role_perms:     role_id -> set of perm strings — applied via add_permissions()
+    # role_resources:        role_id -> {rkey: resource} — scopes role assignments
+    # role_perms:            role_id -> set of perm strings
+    # resource_sec_types:    rkey -> set of FSSETY values seen
     role_resources: dict = {}
     role_perms: dict = {}
+    resource_sec_types: dict = {}
     perms_added = skipped = 0
 
     for row in data.get("security", []):
         pid     = str(row.get("program_id", "")).strip().upper()
+        version = str(row.get("version", "")).strip()
+        rkey    = _resource_key(pid, version)
         subject = str(row.get("user_or_role", "")).strip().upper()
 
         if not pid or not subject:
             continue
         if _is_yes(row.get("no_access")):
-            log.debug("No-access record: %s on %s", subject, pid)
+            log.debug("No-access record: %s on %s", subject, rkey)
             continue
-        if pid not in program_ids:
-            log.debug("Security record for unknown program %s — skip", pid)
+        if rkey not in program_ids:
+            log.debug("Security record for unknown resource %s — skip", rkey)
             skipped += 1
             continue
+
+        # Track security type for this resource
+        sec_type = str(row.get("security_type", "")).strip()
+        if sec_type:
+            resource_sec_types.setdefault(rkey, set()).add(sec_type)
 
         is_user = subject in user_ids
         is_role = subject in role_ids
@@ -635,21 +697,30 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
         if not granted:
             continue
 
-        resource = app.resources.get(pid)
+        resource = app.resources.get(rkey)
         if resource is None:
             continue
 
         if is_role:
-            role_resources.setdefault(subject, {})[pid] = resource
+            role_resources.setdefault(subject, {})[rkey] = resource
             role_perms.setdefault(subject, set()).update(granted)
         else:
             for perm in granted:
                 app.local_users[subject].add_permission(perm, resources=[resource])
         perms_added += 1
 
-    # Apply accumulated role-level permissions (defines what each role can do)
+    # Apply accumulated role-level permissions
     for rid, perms in role_perms.items():
         app.local_roles[rid].add_permissions(list(perms))
+
+    # Write security_type onto each resource (e.g. "Action Code, Hyper Exit")
+    for rkey, types in resource_sec_types.items():
+        resource = app.resources.get(rkey)
+        if resource:
+            label = ", ".join(
+                _SECURITY_TYPE_LABELS.get(t, t) for t in sorted(types)
+            )
+            resource.set_property("security_type", label)
 
     log.info("Security records processed: %d  |  skipped: %d", perms_added, skipped)
 
@@ -671,6 +742,9 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
             # Role appeared in user_roles but not in roles table — auto-create
             role_obj = app.add_local_role(name=rid)
             role_obj.set_property("role_category", _role_category(rid))
+            rdesc = role_desc_by_id.get(rid, "")
+            if rdesc:
+                role_obj.set_property("role_description", rdesc)
             role_ids.add(rid)
             log.debug("Auto-created missing role: %s", rid)
 
