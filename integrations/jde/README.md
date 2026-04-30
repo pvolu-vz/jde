@@ -8,10 +8,13 @@ This connector extracts identity and permission data from JD Edwards (JDE) Enter
 
 | Veza Entity | JDE Source | Tables |
 |---|---|---|
-| Local User | JDE User | F0092, F0101, F01151 |
-| Local Role | JDE Role | F00926 |
-| Application Resource | JDE Program/UBE | F9860 |
+| Local User | JDE User | F0092L, F0101, F01151 |
+| Local Role | JDE Role | F95921 |
+| Application Resource | JDE Program/UBE | F00950 |
 | Permission | Security flags | F00950 |
+| User Status / Role Descriptions | Account status + role metadata | F00926 |
+| User Security Profile | Security settings | F98OWSEC |
+| Last Access Date | Sign-on audit log | F9312 |
 
 **OAA Permission mapping:**
 
@@ -33,24 +36,30 @@ The diagram below shows how JDE source tables map to Veza OAA entities and how t
 ```mermaid
 graph LR
     subgraph JDE["📊 JDE EnterpriseOne — Source Tables"]
-        F0092["F0092 · F0101 · F01151\nUser Master + Address Book + Email"]
-        F00926["F00926\nRole Definitions + User Assignments"]
-        F9860["F9860 · F00950\nObject Librarian / Programs (fallback)"]
-        F00950["F00950\nSecurity Matrix"]
+        F0092L["F0092L · F0101 · F01151\nUser Master + Address Book + Email"]
+        F95921["F95921\nRole Definitions + User Assignments"]
+        F00926["F00926\nUser Status + Role Descriptions"]
+        F98OWSEC["F98OWSEC\nUser Security Profiles"]
+        F9312["F9312\nSign-on Audit (Last Access)"]
+        F00950["F00950\nSecurity Matrix + Program List"]
     end
 
     subgraph Veza["🔷 Veza Access Graph — OAA CustomApplication"]
-        LU["Local User"]
-        LR["Local Role"]
-        AR["Application Resource\n(Program / UBE)"]
+        LU["Local User\njde_status · address_book_number\nemployee_id · ab_type\ndisabled_date · last_access_date"]
+        LR["Local Role\nrole_type · role_category\nrole_description · effective_date · expiry_date"]
+        AR["Application Resource · Program\nobject_type · product_code\nsecurity_type · version"]
         CP["Custom Permission\nview · add · change · delete · run · full_access"]
     end
 
-    F0092  -->|"extract users"| LU
-    F00926 -->|"extract roles"| LR
-    F00926 -->|"user-role membership"| LU
-    F9860  -->|"extract programs"| AR
-    F00950 -->|"map flags → permissions"| CP
+    F0092L   -->|"extract users"| LU
+    F95921   -->|"extract roles"| LR
+    F95921   -->|"user-role membership"| LU
+    F00926   -->|"user status + disabled date"| LU
+    F00926   -->|"role descriptions"| LR
+    F98OWSEC -->|"security profile enrichment"| LU
+    F9312    -->|"last access date"| LU
+    F00950   -->|"derive programs"| AR
+    F00950   -->|"map flags → permissions"| CP
 
     LU -->|"member of"| LR
     LR -->|"has permission"| CP
@@ -60,15 +69,66 @@ graph LR
 
 ---
 
+## Custom Properties
+
+These additional attributes are surfaced in the Veza Access Graph beyond the standard OAA fields.
+
+### Local User properties
+
+| Property | Source | Description |
+|---|---|---|
+| `jde_status` | F00926 · AUACTINACT | `Active` or `Inactive` |
+| `address_book_number` | F0101 · ABAN8 | JDE Address Book number |
+| `employee_id` | F0101 · ABTAX | Employee / tax ID |
+| `ab_type` | F0101 · ABAT1 | Address Book type code |
+| `disabled_date` | F00926 · AUUPMJ | ISO-8601 date when account was last set inactive (JDE Julian → calendar) |
+| `last_access_date` | F9312 · SHUPMJ | ISO-8601 date of the user's most recent sign-on event |
+
+### Local Role properties
+
+| Property | Source | Description |
+|---|---|---|
+| `role_type` | F95921 | Role type when present |
+| `role_category` | Derived from role_id prefix | `PPD` (RT9*), `RT/AD` (RT*/AD*), `Business Unit` (BU*), `Printer` (PR*), `Other` |
+| `role_description` | F00926 · AUROLEDESC | Human-readable role description |
+| `effective_date` | F95921 · RLEFFDATE | ISO-8601 date the role assignment becomes effective |
+| `expiry_date` | F95921 · RLEXPIRDATE | ISO-8601 date the role assignment expires |
+
+### Program Resource properties
+
+| Property | Source | Description |
+|---|---|---|
+| `object_type` | F00950 | JDE object type when available |
+| `product_code` | F00950 · FSSY | JDE product/system code |
+| `security_type` | F00950 · FSSETY | Comma-separated security type labels: `Action Code` (1), `Application/UBE` (3), `Hyper Exit` (6) |
+| `version` | F00950 · FSFRDV | Program version (embedded in resource key as `PROGRAM_ID::VERSION`) |
+
+---
+
+## User Filtering
+
+The following accounts are excluded from the Veza payload to prevent internal JDE system principals from appearing in the access graph:
+
+| Filter | Pattern |
+|---|---|
+| Test/training users | ULUSER begins with `#`, `TRAIN`, or `JDETST_` |
+| System accounts | ULUSER = `_LDAPDEFLT` or `!JDE` |
+| Security subject exclusions | `*PUBLIC` and `EVERYONE` are excluded from F00950 security records |
+
+---
+
 ## How It Works
 
 1. Connect to JDE MS SQL Server (or load from CSV sample files)
-2. Query users from `F0092` with address book details from `F0101` / `F01151`
-3. Query roles and user-role assignments from `F00926`
-4. Query program objects (APPL + UBE) from `F9860`
-5. Query security records from `F00950` mapping users/roles to programs with permission flags
-6. Build a Veza OAA `CustomApplication` payload
-7. Push to Veza (or save as JSON for dry-run inspection)
+2. Query users from `F0092L` with address book enrichment from `F0101` and email identity from `F01151`
+3. Query roles and user-role assignments (including effective/expiry dates) from `F95921`
+4. Query user account status and role descriptions from `F00926`
+5. Query user security profiles (login attempts, security type) from `F98OWSEC`
+6. Query sign-on audit records to derive each user's last access date from `F9312`
+7. Derive program resources from distinct `FSOBNM`/`FSFRDV` values in `F00950`
+8. Query security records from `F00950` mapping users/roles to programs with permission flags
+9. Build a Veza OAA `CustomApplication` payload
+10. Push to Veza (or save as JSON for dry-run inspection)
 
 ---
 
@@ -76,7 +136,7 @@ graph LR
 
 - Python 3.9 or later
 - Microsoft ODBC Driver 17 or 18 for SQL Server ([install guide](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server))
-- Read access to the following JDE tables: `F0092`, `F00926`, `F9860`, `F00950`, `F0101`, `F01151`
+- Read access to the following JDE tables: `F0092L`, `F95921`, `F00950`, `F00926`, `F0101`, `F01151`, `F98OWSEC`, `F9312`
 - Veza API key with permission to create/update providers and datasources
 - Network access from the connector host to the SQL Server instance
 
@@ -195,7 +255,7 @@ Utilities:
 | **5 — API Authentication** | Live `pyodbc` connection with `SELECT @@VERSION`; Veza `GET /api/v1/providers` with Bearer token |
 | **6 — API Endpoint Access** | Veza query API `POST /api/v1/assessments/query_spec:nodes` |
 | **7 — Deployment Structure** | `jde.py` exists and is executable, `logs/` writability, service account |
-| **12 — SQL Query Validation** | Executes `SELECT TOP 2` against all six JDE tables (`F0092`, `F00926`, `F9860`, `F00950`, `F0101`, `F01151`) and prints sample rows to confirm schema, column names, and SELECT access |
+| **12 — SQL Query Validation** | Executes `SELECT TOP 2` against all eight JDE tables (`F0092L`, `F95921`, `F00950`, `F00926`, `F0101`, `F01151`, `F98OWSEC`, `F9312`) and prints sample rows to confirm schema, column names, and SELECT access |
 
 ### Example output (successful run)
 
@@ -303,8 +363,8 @@ usage: jde.py [-h] [--data-dir DATA_DIR] [--env-file ENV_FILE]
 | `--jde-schema` | No | `dbo` | JDE table schema name |
 | `--veza-url` | Yes* | `VEZA_URL` | Veza instance URL |
 | `--veza-api-key` | Yes* | `VEZA_API_KEY` | Veza API key |
-| `--provider-name` | No | `JD Edwards` | Provider label in Veza UI |
-| `--datasource-name` | No | `JDE EnterpriseOne` | Datasource label in Veza UI |
+| `--provider-name` | No | `Oracle JDE` | Provider label in Veza UI |
+| `--datasource-name` | No | `Oracle JDE EnterpriseOne` | Datasource label in Veza UI |
 | `--dry-run` | No | false | Build payload without pushing to Veza |
 | `--save-json` | No | false | Save OAA payload as JSON for inspection |
 | `--log-level` | No | `INFO` | Logging verbosity |
@@ -312,6 +372,17 @@ usage: jde.py [-h] [--data-dir DATA_DIR] [--env-file ENV_FILE]
 *Can be supplied via .env file or environment variable instead of CLI flag.
 
 ### Examples
+
+**CSV sample file names (for `--data-dir` dry-run mode):**
+
+| CSV File | JDE Table | Contents |
+|---|---|---|
+| `F0092L.csv` | F0092L | Users (ULUSER, ULLUSER) |
+| `F95921.csv` | F95921 | Roles + user-role assignments (RLFRROLE, RLTOROLE, RLEFFDATE, RLEXPIRDATE) |
+| `F00950.csv` | F00950 | Security records + program list (FSOBNM, FSFRDV, FSUSER, FSSY, FSA, FSCHNG, FSDLT, FSIOK, FSRUN, FSSETY) |
+| `F00926.csv` | F00926 | User status + role descriptions (AUUSER, AUACTINACT, AUUPMJ, AUROLEDESC) |
+| `F01151.csv` | F01151 | Email addresses (EAUSER, EAEMAL) |
+| `F9312.csv` | F9312 | Sign-on audit / last access (SHUSER, SHEVTYP, SHUPMJ) |
 
 **Dry-run with sample CSV files (no DB required):**
 ```bash
@@ -415,7 +486,7 @@ Stagger cron jobs by 30 minutes to avoid concurrent Veza pushes:
 - **Credentials**: All credentials read from `.env` or environment variables — never hardcoded
 - **File permissions**: `.env` must be `chmod 600`; scripts directory `chmod 700`
 - **DB account**: Use a dedicated read-only SQL account with SELECT access only on the required tables
-- **Least privilege**: Grant SELECT on: `F0092`, `F00926`, `F9860`, `F00950`, `F0101`, `F01151`
+- **Least privilege**: Grant SELECT on: `F0092L`, `F95921`, `F00950`, `F00926`, `F0101`, `F01151`, `F98OWSEC`, `F9312`
 - **Credential rotation**: Update `.env` and restart cron when rotating Veza API keys or DB passwords
 - **SELinux / AppArmor**: Run `restorecon` after any file relocation on RHEL
 
@@ -424,12 +495,14 @@ Stagger cron jobs by 30 minutes to avoid concurrent Veza pushes:
 ```sql
 CREATE LOGIN jde_readonly WITH PASSWORD = 'StrongPassword!';
 CREATE USER  jde_readonly FOR LOGIN jde_readonly;
-GRANT SELECT ON dbo.F0092   TO jde_readonly;
-GRANT SELECT ON dbo.F00926  TO jde_readonly;
-GRANT SELECT ON dbo.F9860   TO jde_readonly;
-GRANT SELECT ON dbo.F00950  TO jde_readonly;
-GRANT SELECT ON dbo.F0101   TO jde_readonly;
-GRANT SELECT ON dbo.F01151  TO jde_readonly;
+GRANT SELECT ON dbo.F0092L   TO jde_readonly;
+GRANT SELECT ON dbo.F95921   TO jde_readonly;
+GRANT SELECT ON dbo.F00950   TO jde_readonly;
+GRANT SELECT ON dbo.F00926   TO jde_readonly;
+GRANT SELECT ON dbo.F0101    TO jde_readonly;
+GRANT SELECT ON dbo.F01151   TO jde_readonly;
+GRANT SELECT ON dbo.F98OWSEC TO jde_readonly;
+GRANT SELECT ON dbo.F9312    TO jde_readonly;
 ```
 
 ---
@@ -477,6 +550,17 @@ sudo apt-get install -y msodbcsql18
 ---
 
 ## Changelog
+
+### v1.12 — Data model and README alignment (2026-04-29)
+- Updated table references throughout: `F0092` → `F0092L`, `F00926` (roles) → `F95921`, `F9860` removed (programs now derived from F00950)
+- Added three new source tables: `F95921` (roles/user-role assignments), `F98OWSEC` (user security profiles), `F9312` (sign-on audit / last access)
+- Added Custom Properties section documenting all user, role, and resource attributes surfaced in Veza
+- Added User Filtering section documenting excluded account patterns (`#`, `TRAIN`, `JDETST_`, `_LDAPDEFLT`, `!JDE`, `*PUBLIC`, `EVERYONE`)
+- Added CSV sample file reference table for dry-run mode
+- Updated Mermaid entity relationship diagram to reflect current data model
+- Updated SQL grant block: `F9860` removed; `F98OWSEC` and `F9312` added
+- Updated default provider name to `Oracle JDE` and datasource name to `Oracle JDE EnterpriseOne`
+- Updated preflight SQL Query Validation to reference all eight tables
 
 ### v1.11 — Schema, collation, and program fallback (2026-04-21)
 - Fixed SQL column references to match the actual JDE table schema after environment-specific differences were observed
