@@ -5,10 +5,17 @@
         "application_type": "Oracle JDE",
         "local_user_properties": {
           "jde_status": "STRING",
-          "address_book_number": "STRING"
+          "address_book_number": "STRING",
+          "employee_id": "STRING",
+          "ab_type": "STRING",
+          "disabled_date": "STRING",
+          "last_access_date": "STRING"
         },
         "local_role_properties": {
-          "role_type": "STRING"
+          "role_type": "STRING",
+          "role_category": "STRING",
+          "effective_date": "STRING",
+          "expiry_date": "STRING"
         },
         "resources": [
           {
@@ -35,7 +42,8 @@
           ],
           "is_active": true,
           "custom_properties": {
-            "jde_status": "A"
+            "jde_status": "Active",
+            "last_access_date": "2025-04-10"
           }
         },
         {
@@ -45,7 +53,8 @@
           ],
           "is_active": true,
           "custom_properties": {
-            "jde_status": "A"
+            "jde_status": "Active",
+            "last_access_date": "2025-03-31"
           }
         },
         {
@@ -55,7 +64,8 @@
           ],
           "is_active": true,
           "custom_properties": {
-            "jde_status": "A"
+            "jde_status": "Active",
+            "last_access_date": "2025-03-21"
           }
         },
         {
@@ -65,7 +75,8 @@
           ],
           "is_active": true,
           "custom_properties": {
-            "jde_status": "A"
+            "jde_status": "Active",
+            "last_access_date": "2025-03-11"
           }
         },
         {
@@ -75,7 +86,8 @@
           ],
           "is_active": true,
           "custom_properties": {
-            "jde_status": "A"
+            "jde_status": "Active",
+            "last_access_date": "2025-03-01"
           }
         },
         {
@@ -85,7 +97,8 @@
           ],
           "is_active": true,
           "custom_properties": {
-            "jde_status": "A"
+            "jde_status": "Active",
+            "last_access_date": "2025-02-19"
           }
         },
         {
@@ -95,7 +108,8 @@
           ],
           "is_active": true,
           "custom_properties": {
-            "jde_status": "A"
+            "jde_status": "Active",
+            "last_access_date": "2025-04-10"
           }
         },
         {
@@ -105,7 +119,8 @@
           ],
           "is_active": true,
           "custom_properties": {
-            "jde_status": "A"
+            "jde_status": "Active",
+            "last_access_date": "2024-12-30"
           }
         },
         {
@@ -115,7 +130,8 @@
           ],
           "is_active": true,
           "custom_properties": {
-            "jde_status": "A"
+            "jde_status": "Active",
+            "last_access_date": "2025-01-01"
           }
         },
         {
@@ -125,14 +141,18 @@
           ],
           "is_active": true,
           "custom_properties": {
-            "jde_status": "A"
+            "jde_status": "Active",
+            "last_access_date": "2025-01-10"
           }
         }
       ],
       "local_groups": [],
       "local_roles": [
         {
-          "name": "BU0026"
+          "name": "BU0026",
+          "custom_properties": {
+            "role_category": "Business Unit"
+          }
         }
       ],
       "local_access_creds": [],

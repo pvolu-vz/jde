@@ -4,7 +4,7 @@ JD Edwards EnterpriseOne to Veza OAA Integration Script
 Collects identity and permission data from JDE via MS SQL Server and pushes to Veza.
 
 Entity model: Local Users → Local Roles → Program Resources (with Add/Change/Delete/View/Run)
-Data sources: F0092L, F95921, F00950, F0101, F01151, F98OWSEC
+Data sources: F0092L, F95921, F00950, F0101, F01151, F98OWSEC, F00926, F9312
 """
 
 import argparse
@@ -76,9 +76,15 @@ _SQL_USERS = """
         RTRIM(u.ULUSER)   AS user_id,
         RTRIM(u.ULLUSER)  AS email,
         RTRIM(a.ABALPH)   AS full_name,
-        a.ABAN8           AS address_book_number
+        a.ABAN8           AS address_book_number,
+        RTRIM(a.ABTAX)    AS employee_id,
+        RTRIM(a.ABAT1)    AS ab_type
     FROM {schema}.F0092L u
     LEFT JOIN {schema}.F0101 a ON RTRIM(u.ULUSER) COLLATE DATABASE_DEFAULT = RTRIM(a.ABALKY) COLLATE DATABASE_DEFAULT
+    WHERE LTRIM(RTRIM(u.ULUSER)) NOT LIKE '#%'
+      AND LTRIM(RTRIM(u.ULUSER)) NOT LIKE 'TRAIN%'
+      AND LTRIM(RTRIM(u.ULUSER)) NOT LIKE 'JDETST_%'
+      AND u.ULUSER NOT IN ('_LDAPDEFLT', '!JDE')
 """
 
 _SQL_ROLES = """
@@ -92,7 +98,9 @@ _SQL_ROLES = """
 _SQL_USER_ROLES = """
     SELECT
         RTRIM(r.RLTOROLE) AS user_id,
-        RTRIM(r.RLFRROLE) AS role_id
+        RTRIM(r.RLFRROLE) AS role_id,
+        r.RLEFFDATE       AS role_effective_date,
+        r.RLEXPIRDATE     AS role_expiry_date
     FROM {schema}.F95921 r
     WHERE r.RLFRROLE IS NOT NULL AND r.RLTOROLE IS NOT NULL
       AND RTRIM(r.RLFRROLE) != '' AND RTRIM(r.RLTOROLE) != ''
@@ -121,6 +129,37 @@ _SQL_USER_SECURITY = """
       AND RTRIM(s.SCUSER) != ''
 """
 
+
+_SQL_USER_STATUS = """
+    SELECT
+        RTRIM(u.AUUSER)        AS user_id,
+        RTRIM(u.AUACTINACT)    AS status_flag,
+        u.AUUPMJ               AS last_update_julian
+    FROM {schema}.F00926 u
+    WHERE u.AUUSER IS NOT NULL
+      AND RTRIM(u.AUUSER) != ''
+"""
+
+_SQL_EMAIL = """
+    SELECT
+        RTRIM(e.EAUSER) AS user_id,
+        RTRIM(e.EAEMAL) AS email
+    FROM {schema}.F01151 e
+    WHERE e.EAUSER IS NOT NULL
+      AND RTRIM(e.EAUSER) != ''
+      AND RTRIM(COALESCE(e.EAEMAL, '')) != ''
+"""
+
+_SQL_LAST_ACCESS = """
+    SELECT
+        RTRIM(s.SHUSER)  AS user_id,
+        MAX(s.SHUPMJ)    AS last_access_julian
+    FROM {schema}.F9312 s
+    WHERE s.SHEVTYP = '01'
+      AND s.SHUSER IS NOT NULL
+      AND RTRIM(s.SHUSER) != ''
+    GROUP BY RTRIM(s.SHUSER)
+"""
 
 _SQL_SECURITY = """
     SELECT
@@ -223,6 +262,9 @@ def load_from_db(config: dict) -> dict:
         "programs":      _apply_schema(_SQL_PROGRAMS, schema),
         "user_security": _apply_schema(_SQL_USER_SECURITY, schema),
         "security":      _apply_schema(_SQL_SECURITY, schema),
+        "user_status":   _apply_schema(_SQL_USER_STATUS, schema),
+        "emails":        _apply_schema(_SQL_EMAIL, schema),
+        "last_access":   _apply_schema(_SQL_LAST_ACCESS, schema),
     }
 
     data = {}
@@ -246,10 +288,13 @@ def load_from_db(config: dict) -> dict:
 def load_from_csv(data_dir: str) -> dict:
     """Load data from JDE CSV exports (used for dry-run testing).
 
-    Reads files by their JDE table names and derives the five data keys
+    Reads files by their JDE table names and derives the data keys
     the payload builder expects.
     """
-    data: dict = {k: [] for k in ["users", "roles", "user_roles", "programs", "security"]}
+    data: dict = {k: [] for k in [
+        "users", "roles", "user_roles", "programs", "security",
+        "user_status", "emails", "last_access",
+    ]}
 
     f0092l = os.path.join(data_dir, "F0092L.csv")
     if os.path.exists(f0092l):
@@ -274,7 +319,12 @@ def load_from_csv(data_dir: str) -> dict:
                     data["roles"].append({"role_id": from_role})
                     role_ids_seen.add(from_role)
                 if from_role and to_user:
-                    data["user_roles"].append({"user_id": to_user, "role_id": from_role})
+                    data["user_roles"].append({
+                        "user_id":              to_user,
+                        "role_id":              from_role,
+                        "role_effective_date":  row.get("RLEFFDATE", ""),
+                        "role_expiry_date":     row.get("RLEXPIRDATE", ""),
+                    })
         log.info("Loaded %d roles and %d user-role assignments from F95921.csv",
                  len(data["roles"]), len(data["user_roles"]))
     else:
@@ -311,6 +361,56 @@ def load_from_csv(data_dir: str) -> dict:
     else:
         log.warning("F00950.csv not found in %s — programs and security will be empty", data_dir)
 
+    f00926 = os.path.join(data_dir, "F00926.csv")
+    if os.path.exists(f00926):
+        with open(f00926, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                uid = row.get("AUUSER", "").strip()
+                if uid:
+                    data["user_status"].append({
+                        "user_id":            uid,
+                        "status_flag":        row.get("AUACTINACT", "").strip(),
+                        "last_update_julian": row.get("AUUPMJ", ""),
+                    })
+        log.info("Loaded %d user-status records from F00926.csv", len(data["user_status"]))
+    else:
+        log.warning("F00926.csv not found in %s — user status will default to active", data_dir)
+
+    f01151 = os.path.join(data_dir, "F01151.csv")
+    if os.path.exists(f01151):
+        with open(f01151, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                uid   = row.get("EAUSER", "").strip()
+                email = row.get("EAEMAL", "").strip()
+                if uid and "@" in email:
+                    data["emails"].append({"user_id": uid, "email": email})
+        log.info("Loaded %d email records from F01151.csv", len(data["emails"]))
+    else:
+        log.warning("F01151.csv not found in %s — emails will come from F0092L only", data_dir)
+
+    f9312 = os.path.join(data_dir, "F9312.csv")
+    if os.path.exists(f9312):
+        last_access_map: dict = {}
+        with open(f9312, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                uid      = row.get("SHUSER", "").strip()
+                evt_type = row.get("SHEVTYP", "").strip()
+                julian   = row.get("SHUPMJ", "")
+                if uid and evt_type == "01":
+                    try:
+                        val = int(julian)
+                    except (TypeError, ValueError):
+                        val = 0
+                    if val > last_access_map.get(uid, 0):
+                        last_access_map[uid] = val
+        data["last_access"] = [
+            {"user_id": uid, "last_access_julian": julian}
+            for uid, julian in last_access_map.items()
+        ]
+        log.info("Loaded %d last-access records from F9312.csv", len(data["last_access"]))
+    else:
+        log.warning("F9312.csv not found in %s — last_access_date will not be set", data_dir)
+
     return data
 
 
@@ -319,6 +419,42 @@ def load_from_csv(data_dir: str) -> dict:
 def _is_yes(value) -> bool:
     """Return True when a JDE security flag field is set to Y/1/TRUE."""
     return str(value).strip().upper() in ("Y", "1", "TRUE", "YES") if value is not None else False
+
+
+def _jde_julian_to_date(jde_int) -> Optional[str]:
+    """Convert a JDE Julian date integer (CYYDDD) to an ISO-8601 date string.
+
+    JDE Julian format: C = century offset (0→19xx, 1→20xx), YY = 2-digit year,
+    DDD = day of year.  A value of 0 means 'no date'.
+    """
+    from datetime import date, timedelta
+    try:
+        val = int(jde_int)
+    except (TypeError, ValueError):
+        return None
+    if val == 0:
+        return None
+    s = str(val).zfill(6)
+    year = (int(s[0]) + 19) * 100 + int(s[1:3])
+    day_of_year = int(s[3:6])
+    try:
+        return (date(year, 1, 1) + timedelta(days=day_of_year - 1)).isoformat()
+    except (ValueError, OverflowError):
+        return None
+
+
+def _role_category(role_id: str) -> str:
+    """Classify a JDE role into a human-readable category based on its prefix."""
+    r = role_id.upper()
+    if r.startswith("RT9"):
+        return "PPD"
+    if r.startswith("RT") or r.startswith("AD"):
+        return "RT/AD"
+    if r.startswith("BU"):
+        return "Business Unit"
+    if r.startswith("PR"):
+        return "Printer"
+    return "Other"
 
 
 # ── OAA Payload Builder ───────────────────────────────────────────────────────
@@ -330,12 +466,36 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
     for perm_name, oaa_types in JDE_PERMISSIONS.items():
         app.add_custom_permission(perm_name, oaa_types)
 
-    # Custom properties
-    app.property_definitions.define_local_role_property("role_type", OAAPropertyType.STRING)
-    app.property_definitions.define_local_user_property("jde_status", OAAPropertyType.STRING)
-    app.property_definitions.define_local_user_property("address_book_number", OAAPropertyType.STRING)
+    # Custom properties — users
+    app.property_definitions.define_local_user_property("jde_status",          OAAPropertyType.STRING)
+    app.property_definitions.define_local_user_property("address_book_number",  OAAPropertyType.STRING)
+    app.property_definitions.define_local_user_property("employee_id",          OAAPropertyType.STRING)
+    app.property_definitions.define_local_user_property("ab_type",              OAAPropertyType.STRING)
+    app.property_definitions.define_local_user_property("disabled_date",        OAAPropertyType.STRING)
+    app.property_definitions.define_local_user_property("last_access_date",     OAAPropertyType.STRING)
+    # Custom properties — roles
+    app.property_definitions.define_local_role_property("role_type",            OAAPropertyType.STRING)
+    app.property_definitions.define_local_role_property("role_category",        OAAPropertyType.STRING)
+    app.property_definitions.define_local_role_property("effective_date",       OAAPropertyType.STRING)
+    app.property_definitions.define_local_role_property("expiry_date",          OAAPropertyType.STRING)
+    # Custom properties — resources
     app.property_definitions.define_resource_property("Program", "object_type", OAAPropertyType.STRING)
     app.property_definitions.define_resource_property("Program", "product_code", OAAPropertyType.STRING)
+
+    # Build lookup dicts for enrichment data
+    status_by_user: dict = {
+        str(r.get("user_id", "")).strip().upper(): r
+        for r in data.get("user_status", [])
+    }
+    email_by_user: dict = {
+        str(r.get("user_id", "")).strip().upper(): str(r.get("email", "")).strip()
+        for r in data.get("emails", [])
+        if "@" in str(r.get("email", ""))
+    }
+    last_access_by_user: dict = {
+        str(r.get("user_id", "")).strip().upper(): r.get("last_access_julian")
+        for r in data.get("last_access", [])
+    }
 
     # ── Local Users ──────────────────────────────────────────────────────────
     user_ids: set = set()
@@ -343,16 +503,46 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
         uid = str(row.get("user_id", "")).strip().upper()
         if not uid or uid in user_ids:
             continue
-        email   = str(row.get("email", "")).strip()
-        status  = str(row.get("status", "A")).strip().upper()
-        abn     = str(row.get("address_book_number", "")).strip()
+
+        # Email: prefer F01151 verified address over F0092L ULLUSER
+        email_f01151 = email_by_user.get(uid, "")
+        email_f0092l = str(row.get("email", "")).strip()
+        email = email_f01151 if email_f01151 else email_f0092l
+
+        # Status from F00926
+        status_row  = status_by_user.get(uid, {})
+        status_flag = str(status_row.get("status_flag", "")).strip().upper()
+        is_inactive = (status_flag == "I")
+
+        abn = str(row.get("address_book_number", "")).strip()
 
         identities = [email] if "@" in email else []
         user = app.add_local_user(name=uid, identities=identities)
-        user.is_active = (status == "A")
-        user.properties["jde_status"] = status
+        user.is_active = not is_inactive
+        user.set_property("jde_status", "Inactive" if is_inactive else "Active")
+
+        if is_inactive:
+            disabled_date = _jde_julian_to_date(status_row.get("last_update_julian"))
+            if disabled_date:
+                user.set_property("disabled_date", disabled_date)
+
         if abn and abn not in ("0", ""):
-            user.properties["address_book_number"] = abn
+            user.set_property("address_book_number", abn)
+
+        emp_id = str(row.get("employee_id", "")).strip()
+        if emp_id:
+            user.set_property("employee_id", emp_id)
+
+        ab_type = str(row.get("ab_type", "")).strip()
+        if ab_type:
+            user.set_property("ab_type", ab_type)
+
+        last_access_julian = last_access_by_user.get(uid)
+        if last_access_julian:
+            last_access_date = _jde_julian_to_date(last_access_julian)
+            if last_access_date:
+                user.set_property("last_access_date", last_access_date)
+
         user_ids.add(uid)
 
     log.info("Users added: %d", len(user_ids))
@@ -366,7 +556,8 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
         role = app.add_local_role(name=rid)
         rtype = str(row.get("role_type", "")).strip()
         if rtype:
-            role.properties["role_type"] = rtype
+            role.set_property("role_type", rtype)
+        role.set_property("role_category", _role_category(rid))
         role_ids.add(rid)
 
     log.info("Roles added: %d", len(role_ids))
@@ -383,9 +574,9 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
 
         resource = app.add_resource(name=pid, resource_type="Program", description=desc)
         if otype:
-            resource.properties["object_type"] = otype
+            resource.set_property("object_type", otype)
         if pcode:
-            resource.properties["product_code"] = pcode
+            resource.set_property("product_code", pcode)
         program_ids.add(pid)
 
     log.info("Program resources added: %d", len(program_ids))
@@ -464,7 +655,9 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
 
     # ── User → Role assignments ───────────────────────────────────────────────
     # Scope each role assignment to the programs that role grants access to,
-    # so Veza renders: User → Role → Program → Application
+    # so Veza renders: User → Role → Program → Application.
+    # Role effective/expiry dates are stored on the role object (last-write wins
+    # for shared roles — dates are typically consistent across assignments).
     assignments = 0
     for row in data.get("user_roles", []):
         uid = str(row.get("user_id", "")).strip().upper()
@@ -476,9 +669,20 @@ def build_oaa_payload(data: dict, provider_name: str, datasource_name: str) -> C
             continue
         if rid not in role_ids:
             # Role appeared in user_roles but not in roles table — auto-create
-            app.add_local_role(name=rid)
+            role_obj = app.add_local_role(name=rid)
+            role_obj.set_property("role_category", _role_category(rid))
             role_ids.add(rid)
             log.debug("Auto-created missing role: %s", rid)
+
+        # Propagate effective/expiry dates onto the role object
+        role_obj = app.local_roles[rid]
+        eff_date = _jde_julian_to_date(row.get("role_effective_date"))
+        exp_date = _jde_julian_to_date(row.get("role_expiry_date"))
+        if eff_date:
+            role_obj.set_property("effective_date", eff_date)
+        if exp_date:
+            role_obj.set_property("expiry_date", exp_date)
+
         resources_for_role = list(role_resources.get(rid, {}).values())
         if resources_for_role:
             app.local_users[uid].add_role(role=rid, resources=resources_for_role)
